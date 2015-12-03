@@ -84,10 +84,35 @@ def read_all_molecule_histograms(directory):
 
 
 def read_bz(path):
+    # Truncate the first column, which just contains an index, read
+    # beta separately, and transpose the rest.
     beta = np.loadtxt(path, usecols=(1, ))
     zz = np.transpose(np.loadtxt(path))[2:]
 
     return {'beta': beta, 'fractions': zz}
+
+
+def read_energy_distribution(directory, subensemble):
+    hist_file = os.path.join(directory, 'ehist.dat')
+    lim_file = os.path.join(directory, 'elim.dat')
+
+    return read_histogram(hist_file, lim_file)[subensemble]
+
+
+def read_expanded_data(directory, is_tee=False):
+    lnpi = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
+    nhists = read_all_molecule_histograms(directory)
+    if is_tee:
+        bz = read_bz(os.path.join(directory, 'bz.dat'))
+        activities = fractions_to_activities(bz['fractions'])
+
+        return {'lnpi': lnpi, 'beta': bz['beta'], 'activities': activities,
+                'nhists': nhists}
+    else:
+        zz = read_zz(os.path.join(directory, 'zz.dat'))
+        activities = fractions_to_activities(zz)
+
+        return {'lnpi': lnpi, 'activities': activities, 'nhists': nhists}
 
 
 def read_zz(path):
