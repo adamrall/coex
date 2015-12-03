@@ -11,6 +11,17 @@ import numpy as np
 from coex.read import read_lnpi, read_histogram
 
 
+def activities_to_fractions(activities):
+    if len(activities.shape) == 1:
+        return np.log(activities)
+
+    fractions = np.copy(activities)
+    fractions[0] = np.log(sum(activities))
+    fractions[1:] /= np.exp(fractions[0])
+
+    return fractions
+
+
 def average_histogram(histogram, weights):
     def average_visited_states(states, weight):
         shifted = states['counts'] * np.exp(-weight * states['bins'])
@@ -19,6 +30,18 @@ def average_histogram(histogram, weights):
 
     return np.array([average_visited_states(*pair)
                      for pair in zip(histogram, weights)])
+
+
+def fractions_to_activities(fractions):
+    if len(fractions.shape) == 1:
+        return np.exp(fractions)
+
+    activities = np.copy(fractions)
+    activity_sum = np.exp(fractions[0])
+    activities[1:] *= activity_sum
+    activities[0] = activity_sum - sum(activities[1:])
+
+    return activities
 
 
 def get_pressure(distribution, volume, beta, histogram=None, is_tee=False):
