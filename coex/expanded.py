@@ -1,14 +1,56 @@
-# TODO: Finish porting egda.gcee code.
 # TODO: Finish writing documentation.
-"""Analyze grand canonical expanded ensemble simulations."""
+"""Find the coexistence properties of grand canonical expanded
+ensemble simulations.
+"""
 
 from __future__ import division
-import glob
 import os.path
 
 import numpy as np
+import scipy.optimize
 
-from coex.read import read_lnpi, read_histogram
+from coex.read import read_all_molecule_histograms, read_lnpi
+
+
+class Phase(object):
+
+    def __init__(self, dist, nhists):
+        self.dist = dist
+        self.nhists = nhists
+
+    def composition(self, weights):
+        nm = self.nmol(weights)
+
+        return nm / sum(nm)
+
+    def grand_potential(self, is_vapor=False, reverse_histogram=False):
+        logp = self.dist['logp']
+        if not is_vapor:
+            return -logp
+
+        gp = np.zeros(len(logp))
+        iter_range = range(len(gp))
+        if reverse_histogram:
+            iter_range = reversed(iter_range)
+
+        for num, i in enumerate(iter_range):
+            dist = self.nhists[0][i]
+            if dist['bins'][0] < 1.0e-8 and dist['counts'][0] > 1000:
+                gp[i] = np.log(dist['counts'][0] / sum(dist['counts']))
+            else:
+                if num == 0:
+                    gp[i] = -self.dist[i]
+                else:
+                    if reverse_histogram:
+                        gp[i] = gp[i + 1] - logp[i + 1] + logp[i]
+                    else:
+                        gp[i] = gp[i - 1] - logp[i - 1] + logp[i]
+
+        return gp
+
+    def nmol(self, weights):
+        return np.array([average_histogram(nh, weights)
+                         for nh in self.nhists[1:]])
 
 
 def activities_to_fractions(activities):
@@ -44,81 +86,48 @@ def fractions_to_activities(fractions):
     return activities
 
 
-def get_pressure(distribution, volume, beta, histogram=None, is_tee=False):
-    lnpi = distribution['logp']
-    if histogram is None:
-        return lnpi / volume / beta
+def two_phase_coexistence(first, second, species=1, x0=1.0):
+    """Analyze a series of grand canonical expanded ensemble
+    simulations.
 
-    size = len(lnpi)
-    pressure = np.zeros(size)
-    gp = -lnpi / volume / beta
-    if is_tee:
-        limit = size - 1
-        iter_range = reversed(range(size))
-    else:
-        limit = 0
-        iter_range = range(size)
+    Args:
+        first: A Phase object with data for the first phase.
+        second: A Phase object with data for the second phase.
+        species: The integer representing which species to use for the
+            reweighting.
+        x0: The initial guess to use for the solver in the
+            coexistence_point function.
 
-    for i in iter_range:
-        dist = histogram[i]
-        if dist['bins'][0] < 1.0e-8 and dist['counts'][0] > 1000:
-            zero_state = dist['counts'][0] / sum(dist['counts'])
-            pressure[i] = -np.log(zero_state) / volume / beta[i]
-        else:
-            if i == limit:
-                pressure[i] = lnpi[i] / beta[i] / volume
-            else:
-                if is_tee:
-                    pressure[i] = pressure[i + 1] + gp[i + 1] - gp[i]
-                else:
-                    pressure[i] = pressure[i - 1] + gp[i - 1] - gp[i]
+    Returns:
+        The coexistence activity ratio, i.e., the quantity
+        new_activity / old_activity, for each subensemble.
 
-    return pressure
+    Notes:
+        The first and second phases must already be shifted to their
+        appropriate reference points. See the manual for more
+        information.
+    """
+    first_nh = first.nhists[species]
+    second_nh = second.nhists[species]
 
+    def objective(x, j):
+        return np.abs(first.dist['logp'][j] + shift_activity(first_nh[j], x) -
+                      second.dist['logp'][j] - shift_activity(second_nh[j], x))
 
-def read_all_molecule_histograms(directory):
-    hist_files = sorted(glob.glob(os.path.join(directory, "nhist_??.dat")))
-    lim_files = sorted(glob.glob(os.path.join(directory, "nlim_??.dat")))
+    solutions = np.zeros(len(first.dist['logp']))
+    for i in range(len(solutions)):
+        solutions[i] = scipy.optimize.fsolve(objective, x0=x0, args=(i, ))
+        first.dist['logp'][i] += shift_activity(first_nh[i], solutions[i])
+        second.dist['logp'][i] += shift_activity(second_nh[i], solutions[i])
 
-    return [read_histogram(*pair) for pair in zip(hist_files, lim_files)]
+    return solutions
 
 
-def read_bz(path):
-    # Truncate the first column, which just contains an index, read
-    # beta separately, and transpose the rest.
-    beta = np.loadtxt(path, usecols=(1, ))
-    zz = np.transpose(np.loadtxt(path))[2:]
-
-    return {'beta': beta, 'fractions': zz}
-
-
-def read_energy_distribution(directory, subensemble):
-    hist_file = os.path.join(directory, 'ehist.dat')
-    lim_file = os.path.join(directory, 'elim.dat')
-
-    return read_histogram(hist_file, lim_file)[subensemble]
-
-
-def read_expanded_data(directory, is_tee=False):
-    lnpi = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
+def read_phase(directory):
+    dist = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
     nhists = read_all_molecule_histograms(directory)
-    if is_tee:
-        bz = read_bz(os.path.join(directory, 'bz.dat'))
-        activities = fractions_to_activities(bz['fractions'])
 
-        return {'lnpi': lnpi, 'beta': bz['beta'], 'activities': activities,
-                'nhists': nhists}
-    else:
-        zz = read_zz(os.path.join(directory, 'zz.dat'))
-        activities = fractions_to_activities(zz)
-
-        return {'lnpi': lnpi, 'activities': activities, 'nhists': nhists}
-
-
-def read_zz(path):
-    # Truncate the first column, which just contains an index, and
-    # transpose the rest.
-    return np.transpose(np.loadtxt(path))[1:]
+    return Phase(dist, nhists)
 
 
 def shift_activity(states, ratio):
