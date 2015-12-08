@@ -1,4 +1,3 @@
-# TODO: Finish writing documentation.
 """Functions for reading gchybrid output files."""
 
 from __future__ import division
@@ -13,7 +12,8 @@ def read_all_molecule_histograms(directory):
     directory.
 
     Args:
-        directory: The location of the nhist and nlim files to read.
+        directory: The path containing the the nhist and nlim files to
+            read.
 
     Returns:
         A list of histograms as read by read_histogram. Each one is
@@ -21,6 +21,7 @@ def read_all_molecule_histograms(directory):
 
     See Also:
         read_histogram()
+
     """
     hist_files = sorted(glob.glob(os.path.join(directory, "nhist_??.dat")))
     lim_files = sorted(glob.glob(os.path.join(directory, "nlim_??.dat")))
@@ -29,15 +30,39 @@ def read_all_molecule_histograms(directory):
 
 
 def read_bz(path):
+    """Read the activity fractions and beta values of a TEE simulation.
+
+    Args:
+        path: The location of the 'bz.dat' file to read.
+
+    Returns:
+        A (beta, activity fractions) tuple of numpy arrays.
+    """
     # Truncate the first column, which just contains an index, read
     # beta separately, and transpose the rest.
     beta = np.loadtxt(path, usecols=(1, ))
     zz = np.transpose(np.loadtxt(path))[2:]
 
-    return {'beta': beta, 'fractions': zz}
+    return beta, zz
 
 
 def read_energy_distribution(directory, subensemble):
+    """Read an energy visited states distribution.
+
+    This function reads the energy visited states histogram from a
+    specified directory but returns only the distribution for a
+    specified subensemble.  It is used for reweighting a subensemble
+    in a TEE simulation to a reference point of different beta.
+
+    Args:
+        directory: The path containing the ehist and elim files to
+            read.
+        subensemble: The specific distribution requested.
+
+    Returns:
+        A distribution: a dict with the keys 'bins' and 'counts'.
+
+    """
     hist_file = os.path.join(directory, 'ehist.dat')
     lim_file = os.path.join(directory, 'elim.dat')
 
@@ -111,6 +136,17 @@ def read_volume_histogram(hist_path, lim_path, uses_log_volume=False):
 
 
 def read_zz(path):
+    """Read the activity fractions of an AFEE simulation.
+
+    Args:
+        path: The location of the 'zz.dat' file to read.
+
+    Returns:
+        A numpy array: the first row contains the logarithm of the sum
+        of the activities for each subensemble, and each subsequent
+        row contains the activity fractions of each species after the
+        first.
+    """
     # Truncate the first column, which just contains an index, and
     # transpose the rest.
     return np.transpose(np.loadtxt(path))[1:]
