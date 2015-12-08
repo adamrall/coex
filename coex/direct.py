@@ -1,4 +1,3 @@
-# TODO: Finish writing documentation.
 """Find the coexistence properties of direct (grand canonical)
 simulations.
 """
@@ -13,6 +12,17 @@ from coex.read import read_all_molecule_histograms, read_lnpi
 
 
 class Simulation(object):
+    """A container for direct simulation data.
+
+    Attributes:
+        dist: A dict with the keys 'param' and 'logp' holding the
+            logarithm of the probability distribution.
+        nhists: A list of molecule number histograms.
+
+    See Also:
+        read.histogram() for a description of the structure of each
+        histogram.
+    """
 
     def __init__(self, dist, nhists):
         self.dist = dist
@@ -34,6 +44,16 @@ class Simulation(object):
         return np.log(prob[0] * 2.0)
 
     def nmol(self, split=0.5):
+        """Find the average number of molecules in each phase.
+
+        Args:
+            split: A float: where (as a fraction of the order
+                parameter range) the liquid/vapor phase boundary lies.
+
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing
+            the average number of molecules of each species.
+        """
         components = len(self.nhists - 1)
         vapor_n = np.zeros([components])
         liquid_n = np.zeros([components])
@@ -52,6 +72,12 @@ class Simulation(object):
         return vapor_n, liquid_n
 
     def composition(self):
+        """Calculate the average composition of each phase.
+
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing
+            the mole fraction of each species.
+        """
         vapor_n, liquid_n = self.nmol()
 
         return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
@@ -83,6 +109,15 @@ def coexistence(simulation):
 
 
 def read_simulation(directory):
+    """Read the relevant data from a simulation directory.
+
+    Args:
+        directory: The directory containing the data.
+
+    Returns:
+        A Simulation object containing the logarithm of the
+        probability distribution and the molecule number histograms.
+    """
     dist = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
     nhists = read_all_molecule_histograms(directory)
 
