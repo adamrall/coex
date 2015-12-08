@@ -1,4 +1,3 @@
-# TODO: Finish writing documentation.
 """Find the wetting properties of a direct or expanded ensemble
 grand canonical simulation.
 """
@@ -41,10 +40,57 @@ def drying_coefficient(potential):
 
 
 def expanded_ensemble_coefficients(valley, plateau, index, reference):
+    """Calculate the change in spreading/drying coefficient for a pair of
+    simulations.
+
+    Args:
+        valley: The interface potential of the valley region.
+        plateau: The interface potential of the plateau region.
+        index: The reference subensemble number.
+        reference: The reference spreading/drying coefficient.
+
+    Returns:
+        A numpy array with the spreading/drying coefficient of each
+        subensemble.
+
+    See Also:
+        interface_potential() for a description of the interface
+        potential.
+    """
     return reference + (valley - valley[index]) - (plateau - plateau[index])
 
 
 def interface_potential(dist, area, beta):
+    """Convert a logarithmic probability distribution to an interface
+    potential.
+
+    The interface potential is the free energy required to form a
+    fluid film of a specified thickness.  In a partially wetting
+    system (i.e., one that would form a bubble/droplet of one phase on
+    a surface surrounded by another phase), the interface potential in
+    a direct simulation has a global minimum at near-zero fluid
+    thickness and a plateau for the formation of a thick film.  We use
+    the difference between these two regions to find a measure of the
+    spreading or drying coefficient of the system.  In an expanded
+    ensemble simulation, we track the two regions separately;
+    differences in the interface potential of each region can be
+    combined to find differences in the spreading or drying
+    coefficient with respect to some expanded ensemble path.
+
+    Args:
+
+        dist: A distribution, i.e., a dict with keys 'param' and
+            'logp'.
+        area: The x*y area of the simulation in m^2.
+        beta: The thermodynamic beta (1/kT) of the simulation.
+
+    Returns:
+        A numpy array with the interface potential.
+
+    See Also:
+        read.read_lnpi() for the structure of the distribution.
+
+    """
     return -dist['logp'] / area / beta
 
 
