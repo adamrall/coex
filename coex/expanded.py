@@ -1,4 +1,3 @@
-# TODO: Finish writing documentation.
 """Find the coexistence properties of grand canonical expanded
 ensemble simulations.
 """
@@ -13,17 +12,70 @@ from coex.read import read_all_molecule_histograms, read_lnpi
 
 
 class Phase(object):
+    """A container for grand canonical exapnded ensemble simulation data.
+
+    Attributes:
+        dist: A dict with the keys 'param' and 'logp' holding the
+            logarithm of the probability distribution.
+        nhists: A list of molecule number histograms.
+
+    See Also:
+        read.histogram() for a description of the structure of each
+        histogram.
+    """
 
     def __init__(self, dist, nhists):
         self.dist = dist
         self.nhists = nhists
 
-    def composition(self, weights):
+    def composition(self, weights=None):
+        """Calculate the weighted average composition of the phase.
+
+        The weights here are frequently the solutions found by one of
+        the coexistence point solving functions in this module.  They
+        correspond to ratios of new/old activities for a given order
+        parameter species.
+
+        Args:
+            weights: A numpy array with weights for each species in
+                each subensemble.
+
+        Returns:
+            A numpy array with the mole fraction of each species in
+            each subensemble.
+
+        See Also:
+            solutions_to_weights() for a function to convert the
+            output of the coexistence functions into a form suitable
+            for use here.
+        """
         nm = self.nmol(weights)
 
         return nm / sum(nm)
 
     def grand_potential(self, is_vapor=False, reverse_histogram=False):
+        """Calculate the grand potential of each subensemble in the
+        phase.
+
+        This function walks the length of the expanded ensemble path
+        (forwards or backwards) and uses the N=0 visited state
+        distribution to calculate the grand potential of each
+        subensemble if applicable.  If the N=0 state is not sampled
+        sufficiently, the free energy difference between subensembles
+        is used.
+
+        Args:
+            is_vapor: A boolean denoting whether the phase is a vapor,
+                i.e., whether it is likely that the N=0 state is
+                sampled.
+            reverse_histogram: A boolean denoting which direction to
+                traverse the expanded ensemble path.  Should be True
+                for TEE simulations.
+
+        Returns:
+            A numpy array with the grand potential of each
+            subensemble.
+        """
         logp = self.dist['logp']
         if not is_vapor:
             return -logp
@@ -48,12 +100,43 @@ class Phase(object):
 
         return gp
 
-    def nmol(self, weights):
-        return np.array([average_histogram(nh, weights)
-                         for nh in self.nhists[1:]])
+    def nmol(self, weights=None):
+        """Calculate the weighted average number of molecules in the
+        phase.
+
+        Args:
+            weights: A numpy array with weights for each species in
+                each subensemble.
+
+        Returns:
+            A numpy array with the number of molecules of each species
+            in each subensemble.
+
+        See Also:
+            composition() and solutions_to_weights() for descriptions
+            of the weights used here.
+        """
+        return np.array([average_histogram(nh, weights[i])
+                         for i, nh in enumerate(self.nhists[1:])])
 
 
 def activities_to_fractions(activities):
+    """Convert a list of activities to activity fractions.
+
+    Args:
+        activities: A numpy array with the activities of the system.
+            Each row corresponds to a species and each column to a
+            subensemble.
+
+    Returns:
+        A numpy array.  The first row contains the logarithm of the
+        sum of the activities in each subensemble.  The subsequent
+        rows contain the activity fractions of each species after the
+        first for each subensemble.
+
+    See Also:
+        fractions_to_activities() for the opposite conversion.
+    """
     if len(activities.shape) == 1:
         return np.log(activities)
 
@@ -64,17 +147,52 @@ def activities_to_fractions(activities):
     return fractions
 
 
-def average_histogram(histogram, weights):
+def average_histogram(histogram, weights=None):
+    """Calculate the weighted average of a visited states histogram.
+
+    Args:
+        histogram: A vistied states histogram.
+        weights: A list of weights for each distribution in the
+            histogram.
+
+    Returns:
+        A numpy array with the weighted average of each distribution
+        in the histogram.
+
+    See Also:
+        read.read_histogram() for a description of the structure of
+        the histogram.
+    """
+
     def average_visited_states(states, weight):
+        """Average a given visited states distribution."""
         shifted = states['counts'] * np.exp(-weight * states['bins'])
 
         return sum(shifted * states['bins']) / sum(shifted)
+
+    if weights is None:
+        weights = np.ones(len(histogram))
 
     return np.array([average_visited_states(*pair)
                      for pair in zip(histogram, weights)])
 
 
 def fractions_to_activities(fractions):
+    """Convert a list of activity fractions to activities.
+
+    Args:
+        fractions: A numpy array with the activity fractions.  The
+            first row is the log of the sum of activities; each
+            subsequent row is the activity fraction of the 2nd, 3rd,
+            etc. species.  Each column is a subensemble.
+
+    Returns:
+        A numpy array with the activities: each row is a species, each
+        column a subensemble.
+
+    See Also:
+        activities_to_fractions() for the opposite conversion.
+    """
     if len(fractions.shape) == 1:
         return np.exp(fractions)
 
@@ -124,6 +242,16 @@ def two_phase_coexistence(first, second, species=1, x0=1.0):
 
 
 def read_phase(directory):
+    """Read the relevant data from an exapnded ensemble simulation
+    directory.
+
+    Args:
+        directory: The directory containing the data.
+
+    Returns:
+        A Phase object containing the logarithm of the probability
+        distribution and the molecule number histograms.
+    """
     dist = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
     nhists = read_all_molecule_histograms(directory)
 
@@ -165,3 +293,46 @@ def shift_beta(states, difference):
                 np.log(sum(counts)))
 
     return 0.0
+
+
+def solutions_to_weights(solutions, species_count=1, order_parameter=1,
+                         fractions=None):
+    """Converts the solutions returned by the coexistence finding
+    functions into a form used for finding the average molecule number
+    and composition of a phase.
+
+    Args:
+        solutions: A numpy array of activity ratios.
+        species_count: The number of species in the simulation.
+        order_parameter: The order parameter species, i.e., the
+            species represented by the ratios in the solutions.  Set
+            to 0 if the sum of activities was used as the order
+            parameter.
+        fractions: Required only for order_parameter=0; a list of the
+            activity fractions of the simulation.
+
+    Returns:
+        A numpy array with the appropriate weights to use for
+        averaging the molecule number histograms of a given Phase
+        object.
+
+    See Also:
+        Phase.composition(), Phase.nmol()
+
+    """
+    if order_parameter == 0:
+        old_activities = fractions_to_activities(fractions)
+        new_fractions = np.copy(fractions)
+        new_fractions[0] += np.log(solutions)
+        new_activities = fractions_to_activities(new_fractions)
+
+        return new_activities / old_activities
+
+    if species_count == 1:
+        return solutions
+
+    weights = np.ones([species_count, len(solutions)])
+    if order_parameter > 0:
+        weights[order_parameter] = solutions
+
+    return weights
