@@ -46,6 +46,26 @@ class Simulation(object):
         self.dist = dist
         self.nhists = nhists
 
+    def apply_solutions(self, solutions):
+        """Find the coexistence log probability distribution.
+
+        Args:
+            solutions: The activity ratios returned by the coexistence
+            solver.
+        """
+        self.dist['logp'] = transform(self.dist, solution)
+
+    def composition(self):
+        """Calculate the average composition of each phase.
+
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing
+            the mole fraction of each species.
+        """
+        vapor_n, liquid_n = self.nmol()
+
+        return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
+
     def grand_potential(self):
         """Calculate the grand potential of the simulation.
 
@@ -89,17 +109,6 @@ class Simulation(object):
 
         return vapor_n, liquid_n
 
-    def composition(self):
-        """Calculate the average composition of each phase.
-
-        Returns:
-            A (vapor, liquid) tuple of numpy arrays, each containing
-            the mole fraction of each species.
-        """
-        vapor_n, liquid_n = self.nmol()
-
-        return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
-
 
 def coexistence(simulation):
     """Find the coexistence point of a direct simulation.
@@ -120,10 +129,7 @@ def coexistence(simulation):
 
         return np.abs(vapor - liquid)
 
-    solution = fsolve(objective, x0=1.0, maxfev=1000)
-    simulation.dist['logp'] = transform(simulation.dist, solution)
-
-    return solution
+    return fsolve(objective, x0=1.0, maxfev=1000)
 
 
 def read_simulation(directory):

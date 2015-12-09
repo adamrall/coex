@@ -46,6 +46,22 @@ class Phase(object):
         self.dist = dist
         self.nhists = nhists
 
+    def apply_solutions(self, solutions, species=1):
+        """Find the coexistence log probability distribution.
+
+        Apply the activity ratios calculated by the coexistence
+        solvers to the dist attribute.
+
+        Args:
+            solutions: A list of activity ratios.
+
+            species: The chemical species for which the solutions
+            apply.  May be 0 if solutions corresponds to the ratios
+            for the sum of the activities.
+        """
+        for i, nd in enumerate(self.nhists[species]):
+            self.dist['logp'][i] += shift_activity(nd, solutions[i])
+
     def composition(self, weights=None):
         """Calculate the weighted average composition of the phase.
 
@@ -250,14 +266,9 @@ def two_phase_coexistence(first, second, species=1, x0=1.0):
         return np.abs(first.dist['logp'][j] + shift_activity(first_nh[j], x) -
                       second.dist['logp'][j] - shift_activity(second_nh[j], x))
 
-    solutions = np.zeros(len(first.dist['logp']))
-    for i in range(len(solutions)):
-        solutions[i] = scipy.optimize.fsolve(objective, x0=x0, args=(i, ))
-        first.dist['logp'][i] += shift_activity(first_nh[i], solutions[i])
-        second.dist['logp'][i] += shift_activity(second_nh[i], solutions[i])
-
-    return solutions
-
+    return [scipy.optimize.fsolve(objective, x0=x0, args=(i, ))
+            for i in range(len(first.dist['logp']))]
+    
 
 def read_phase(directory):
     """Read the relevant data from an exapnded ensemble simulation
