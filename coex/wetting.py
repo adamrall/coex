@@ -107,7 +107,6 @@ def interface_potential(dist, area, beta):
 
     See Also:
         read.read_lnpi() for the structure of the distribution.
-
     """
     return -dist['logp'] / area / beta
 

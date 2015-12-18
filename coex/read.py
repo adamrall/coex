@@ -39,7 +39,6 @@ def read_all_molecule_histograms(directory):
 
     See Also:
         read_histogram()
-
     """
     hist_files = sorted(glob.glob(os.path.join(directory, "nhist_??.dat")))
     lim_files = sorted(glob.glob(os.path.join(directory, "nlim_??.dat")))
@@ -79,7 +78,6 @@ def read_energy_distribution(directory, subensemble):
 
     Returns:
         A distribution: a dict with the keys 'bins' and 'counts'.
-
     """
     hist_file = os.path.join(directory, 'ehist.dat')
     lim_file = os.path.join(directory, 'elim.dat')

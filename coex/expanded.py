@@ -347,7 +347,6 @@ def solutions_to_weights(solutions, species_count=1, order_parameter=1,
 
     See Also:
         Phase.composition(), Phase.nmol()
-
     """
     if order_parameter == 0:
         old_activities = fractions_to_activities(fractions)
