@@ -1,3 +1,4 @@
+# TODO: finish updating documentation
 # direct.py
 # Copyright (C) 2015 Adam R. Rall <arall@buffalo.edu>
 #
@@ -26,15 +27,20 @@ import os.path
 import numpy as np
 from scipy.optimize import fsolve
 
-from coex.read import read_all_molecule_histograms, read_lnpi
+from coex.activity import activities_to_fractions, fractions_to_activities
+from coex.read import read_order_parameter, read_lnpi
+from coex.states import average_histogram, read_all_molecule_histograms
 
 
 class Simulation(object):
     """A container for direct simulation data.
 
     Attributes:
-        dist: A dict with the keys 'param' and 'logp' holding the
-            logarithm of the probability distribution.
+        order_param: A numpy array with the values of the order
+            parameter (typically the number of molecules of one or
+            all species).
+        lnpi: A numpy array with the logarithm of the probability
+            distribution.
         nhists: A list of molecule number histograms.
 
     See Also:
@@ -42,18 +48,12 @@ class Simulation(object):
         histogram.
     """
 
-    def __init__(self, dist, nhists):
-        self.dist = dist
+    def __init__(self, order_param, lnpi, nhists, activities):
+        self.order_param = order_param
+        self.lnpi = lnpi
         self.nhists = nhists
-
-    def apply_solutions(self, solutions):
-        """Find the coexistence log probability distribution.
-
-        Args:
-            solutions: The activity ratios returned by the coexistence
-            solver.
-        """
-        self.dist['logp'] = transform(self.dist, solution)
+        self.init_act = activities
+        self.coex_act = np.copy(activities)
 
     def composition(self):
         """Calculate the average composition of each phase.
@@ -76,7 +76,7 @@ class Simulation(object):
         Returns:
             A float containing the grand potential.
         """
-        prob = np.exp(self.dist['logp'])
+        prob = np.exp(self.lnpi)
         prob /= sum(prob)
 
         return np.log(prob[0] * 2.0)
@@ -92,47 +92,55 @@ class Simulation(object):
             A (vapor, liquid) tuple of numpy arrays, each containing
             the average number of molecules of each species.
         """
-        components = len(self.nhists - 1)
-        vapor_n = np.zeros([components])
-        liquid_n = np.zeros([components])
-        p = np.exp(self.dist['logp'])
-        bound = split * len(p)
-        vapor_p = p[:bound]
-        liquid_p = p[bound:]
+        weight = np.log(self.init_act) - np.log(self.coex_act)
+        bound = split * len(self.lnpi)
+        vapor = np.array([average_histogram(nh[:bound], weight)
+                          for nh in self.nhists[1:]])
+        liquid = np.array([average_histogram(nh[bound:], weight)
+                           for nh in self.nhists[1:]])
 
-        for i, nh in enumerate(self.nhists[1:]):
-            nm = sum(nh['counts'] * nh['bins']) / sum(nh['counts'])
-            vapor_nm = nm[:bound]
-            liquid_nm = nm[bound:]
-            vapor_n[i] = sum(vapor_p * vapor_nm / sum(vapor_p))
-            liquid_n[i] = sum(liquid_p * liquid_nm / sum(liquid_p))
+        return vapor, liquid
 
-        return vapor_n, liquid_n
+    def transform(self, amount):
+        """Perform linear transformation on a probability distribution.
+
+        Args:
+            amount: The amount to shift the distribution using the
+                formula ln(P) + N * amount.
+
+        Returns:
+            A numpy array with the shifted logarithmic probabilities.
+        """
+        return self.order_param * amount + self.lnpi
 
 
-def coexistence(simulation):
+def coexistence(sim, species):
     """Find the coexistence point of a direct simulation.
 
     Args:
-        simulation: A simulation object.
-
-    Returns:
-        A ratio of the coexistence activity of the order parameter
-        species to its initial value.
+        sim: A simulation object.
+        species: The simulation's order parmeter species.
     """
-    split = int(0.5 * len(simulation.dist['param']))
+    split = int(0.5 * len(sim.order_param))
 
     def objective(x):
-        transformed = np.exp(transform(simulation.dist, x))
+        transformed = np.exp(sim.transform(x))
         vapor = sum(transformed[:split])
         liquid = sum(transformed[split:])
 
         return np.abs(vapor - liquid)
 
-    return fsolve(objective, x0=1.0, maxfev=1000)
+    solution = fsolve(objective, x0=1.0, maxfev=1000)
+    sim.lnpi = sim.transform(solution)
+    if species == 0:
+        frac = activities_to_fractions(sim.init_act, direct=True)
+        frac[0] += solution
+        sim.coex_act = fractions_to_activities(frac, direct=True)
+    else:
+        sim.coex_act[species - 1] *= np.exp(solution)
 
 
-def read_simulation(directory):
+def read_simulation(directory, fractions):
     """Read the relevant data from a simulation directory.
 
     Args:
@@ -142,22 +150,10 @@ def read_simulation(directory):
         A Simulation object containing the logarithm of the
         probability distribution and the molecule number histograms.
     """
-    dist = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
+    lnpi_file = os.path.join(directory, 'lnpi_op.dat')
+    order_param = read_order_parameter(lnpi_file)
+    lnpi = read_lnpi(lnpi_file)
     nhists = read_all_molecule_histograms(directory)
+    activities = fractions_to_activities(fractions, direct=True)
 
-    return Simulation(dist, nhists)
-
-
-def transform(dist, amount):
-    """Perform linear transformation on a probability distribution.
-
-    Args:
-        dist: A dict with keys 'param' and 'logp', as returned by
-            read_lnpi.
-        amount: The amount to shift the distribution using the
-            formula ln(P) + N * amount.
-
-    Returns:
-        A numpy array with the shifted logarithmic probabilities.
-    """
-    return dist['param'] * amount + dist['logp']
+    return Simulation(order_param, lnpi, nhists, activities)

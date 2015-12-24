@@ -1,3 +1,4 @@
+# TODO: finish updating documentation
 # expanded.py
 # Copyright (C) 2015 Adam R. Rall <arall@buffalo.edu>
 #
@@ -24,17 +25,20 @@ from __future__ import division
 import os.path
 
 import numpy as np
-import scipy.optimize
+from scipy.optimize import fsolve
 
-from coex.read import read_all_molecule_histograms, read_lnpi
+from coex.activity import activities_to_fractions, fractions_to_activities
+from coex.read import read_bz, read_lnpi, read_zz
+from coex.states import average_histogram, read_all_molecule_histograms
+from coex.states import read_energy_distribution
 
 
 class Phase(object):
     """A container for grand canonical exapnded ensemble simulation data.
 
     Attributes:
-        dist: A dict with the keys 'param' and 'logp' holding the
-            logarithm of the probability distribution.
+        lnpi: A numpy array with the logarithm of the probability
+            distribution.
         nhists: A list of molecule number histograms.
 
     See Also:
@@ -42,48 +46,22 @@ class Phase(object):
         histogram.
     """
 
-    def __init__(self, dist, nhists):
-        self.dist = dist
+    def __init__(self, lnpi, nhists, index, activities, beta=None):
+        self.lnpi = lnpi
         self.nhists = nhists
+        self.index = index
+        self.init_act = activities
+        self.coex_act = np.copy(activities)
+        self.beta = beta
 
-    def apply_solutions(self, solutions, species=1):
-        """Find the coexistence log probability distribution.
-
-        Apply the activity ratios calculated by the coexistence
-        solvers to the dist attribute.
-
-        Args:
-            solutions: A list of activity ratios.
-
-            species: The chemical species for which the solutions
-            apply.  May be 0 if solutions corresponds to the ratios
-            for the sum of the activities.
-        """
-        for i, nd in enumerate(self.nhists[species]):
-            self.dist['logp'][i] += shift_activity(nd, solutions[i])
-
-    def composition(self, weights=None):
+    def composition(self):
         """Calculate the weighted average composition of the phase.
-
-        The weights here are frequently the solutions found by one of
-        the coexistence point solving functions in this module.  They
-        correspond to ratios of new/old activities for a given order
-        parameter species.
-
-        Args:
-            weights: A numpy array with weights for each species in
-                each subensemble.
 
         Returns:
             A numpy array with the mole fraction of each species in
             each subensemble.
-
-        See Also:
-            solutions_to_weights() for a function to convert the
-            output of the coexistence functions into a form suitable
-            for use here.
         """
-        nm = self.nmol(weights)
+        nm = self.nmol()
 
         return nm / sum(nm)
 
@@ -110,132 +88,54 @@ class Phase(object):
             A numpy array with the grand potential of each
             subensemble.
         """
-        logp = self.dist['logp']
         if not is_vapor:
-            return -logp
+            return -self.lnpi
 
-        gp = np.zeros(len(logp))
+        gp = np.zeros(len(self.lnpi))
         iter_range = range(len(gp))
         if reverse_histogram:
             iter_range = reversed(iter_range)
 
         for num, i in enumerate(iter_range):
-            dist = self.nhists[0][i]
-            if dist['bins'][0] < 1.0e-8 and dist['counts'][0] > 1000:
-                gp[i] = np.log(dist['counts'][0] / sum(dist['counts']))
+            states = self.nhists[0][i]
+            if states.bins[0] < 1.0e-8 and states.counts[0] > 1000:
+                gp[i] = np.log(states.counts[0] / sum(states.counts))
             else:
                 if num == 0:
-                    gp[i] = -self.dist[i]
+                    gp[i] = -self.lnpi[i]
                 else:
                     if reverse_histogram:
-                        gp[i] = gp[i + 1] - logp[i + 1] + logp[i]
+                        gp[i] = gp[i + 1] - self.lnpi[i + 1] + self.lnpi[i]
                     else:
-                        gp[i] = gp[i - 1] - logp[i - 1] + logp[i]
+                        gp[i] = gp[i - 1] - self.lnpi[i - 1] + self.lnpi[i]
 
         return gp
 
-    def nmol(self, weights=None):
+    def nmol(self):
         """Calculate the weighted average number of molecules in the
         phase.
-
-        Args:
-            weights: A numpy array with weights for each species in
-                each subensemble.
 
         Returns:
             A numpy array with the number of molecules of each species
             in each subensemble.
-
-        See Also:
-            composition() and solutions_to_weights() for descriptions
-            of the weights used here.
         """
-        return np.array([average_histogram(nh, weights[i])
-                         for i, nh in enumerate(self.nhists[1:])])
+        weights = np.log(self.coex_act) - np.log(self.init_act)
+
+        return np.array([average_histogram(hist, weights[i])
+                         for i, hist in enumerate(self.nhists[1:])])
 
 
-def activities_to_fractions(activities):
-    """Convert a list of activities to activity fractions.
+def liquid_liquid_coexistence(first, second, species, grand_potential):
+    for p in (first, second):
+        p.lnpi += p.lnpi[p.index] - grand_potential
 
-    Args:
-        activities: A numpy array with the activities of the system.
-            Each row corresponds to a species and each column to a
-            subensemble.
-
-    Returns:
-        A numpy array.  The first row contains the logarithm of the
-        sum of the activities in each subensemble.  The subsequent
-        rows contain the activity fractions of each species after the
-        first for each subensemble.
-
-    See Also:
-        fractions_to_activities() for the opposite conversion.
-    """
-    if len(activities.shape) == 1:
-        return np.log(activities)
-
-    fractions = np.copy(activities)
-    fractions[0] = np.log(sum(activities))
-    fractions[1:] /= np.exp(fractions[0])
-
-    return fractions
+    two_phase_coexistence(first, second, species)
 
 
-def average_histogram(histogram, weights=None):
-    """Calculate the weighted average of a visited states histogram.
-
-    Args:
-        histogram: A vistied states histogram.
-        weights: A list of weights for each distribution in the
-            histogram.
-
-    Returns:
-        A numpy array with the weighted average of each distribution
-        in the histogram.
-
-    See Also:
-        read.read_histogram() for a description of the structure of
-        the histogram.
-    """
-
-    def average_visited_states(states, weight):
-        """Average a given visited states distribution."""
-        shifted = states['counts'] * np.exp(-weight * states['bins'])
-
-        return sum(shifted * states['bins']) / sum(shifted)
-
-    if weights is None:
-        weights = np.ones(len(histogram))
-
-    return np.array([average_visited_states(*pair)
-                     for pair in zip(histogram, weights)])
-
-
-def fractions_to_activities(fractions):
-    """Convert a list of activity fractions to activities.
-
-    Args:
-        fractions: A numpy array with the activity fractions.  The
-            first row is the log of the sum of activities; each
-            subsequent row is the activity fraction of the 2nd, 3rd,
-            etc. species.  Each column is a subensemble.
-
-    Returns:
-        A numpy array with the activities: each row is a species, each
-        column a subensemble.
-
-    See Also:
-        activities_to_fractions() for the opposite conversion.
-    """
-    if len(fractions.shape) == 1:
-        return np.exp(fractions)
-
-    activities = np.copy(fractions)
-    activity_sum = np.exp(fractions[0])
-    activities[1:] *= activity_sum
-    activities[0] = activity_sum - sum(activities[1:])
-
-    return activities
+def liquid_vapor_coexistence(liquid, vapor, species):
+    vapor.lnpi = -vapor.grand_potential()
+    liquid.lnpi += liquid.lnpi[liquid.index] - vapor.lnpi[vapor.index]
+    two_phase_coexistence(liquid, vapor, species)
 
 
 def two_phase_coexistence(first, second, species=1, x0=1.0):
@@ -250,117 +150,64 @@ def two_phase_coexistence(first, second, species=1, x0=1.0):
         x0: The initial guess to use for the solver in the
             coexistence_point function.
 
-    Returns:
-        The coexistence activity ratio, i.e., the quantity
-        new_activity / old_activity, for each subensemble.
-
     Notes:
         The first and second phases must already be shifted to their
-        appropriate reference points. See the manual for more
-        information.
+        appropriate reference points.
     """
-    first_nh = first.nhists[species]
-    second_nh = second.nhists[species]
+    first_nhist = first.nhists[species]
+    second_nhist = second.nhists[species]
 
     def objective(x, j):
-        return np.abs(first.dist['logp'][j] + shift_activity(first_nh[j], x) -
-                      second.dist['logp'][j] - shift_activity(second_nh[j], x))
+        return np.abs(first.lnpi[j] + first_nhist[j].reweight(x) -
+                      second.lnpi[j] - second_nhist[j].reweight(x))
 
-    return [scipy.optimize.fsolve(objective, x0=x0, args=(i, ))
-            for i in range(len(first.dist['logp']))]
-    
+    for i in range(len(first.lnpi)):
+        if i == first.index or i == second.index:
+            continue
 
-def read_phase(directory):
+        solution = fsolve(objective, x0=x0, args=(i, ))
+        first.lnpi[i] += first_nhist[i].reweight(solution)
+        second.lnpi[i] += second_nhist[i].reweight(solution)
+
+        if species == 0:
+            frac = activities_to_fractions(first.init_act[:, i])
+            frac[0] -= solution
+            act = fractions_to_activities(frac)
+            first.coex_act[:, i] = act
+            second.coex_act[:, i] = act
+        else:
+            new = np.exp(np.log(first.init_act[species - 1, i]) - solution)
+            first.coex_act[species - 1, i] = new
+            second.coex_act[species - 1, i] = new
+
+
+def read_phase(directory, index, fractions, beta=None):
     """Read the relevant data from an exapnded ensemble simulation
     directory.
 
     Args:
         directory: The directory containing the data.
+        index: The reference subensemble index.
+        fractions: The reference activity fractions.
+        beta: A numpy array with the reference thermodynamic beta.
 
     Returns:
-        A Phase object containing the logarithm of the probability
-        distribution and the molecule number histograms.
+        A Phase object, shifted to the refrence point.
     """
-    dist = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
+    lnpi = read_lnpi(os.path.join(directory, 'lnpi_op.dat'))
     nhists = read_all_molecule_histograms(directory)
+    bb = None
+    if beta is not None:
+        bb, zz = read_bz(os.path.join(directory, 'bz.dat'))
+        energy = read_energy_distribution(directory, index)
+        lnpi[index] += energy.reweight(beta - bb[index])
 
-    return Phase(dist, nhists)
+    zz = read_zz(os.path.join(directory, 'zz.dat'))
+    ref_act = fractions_to_activities(zz)
+    act = fractions_to_activities(fractions)
+    ratios = np.log(act[:, index]) - np.log(ref_act)
+    act[:, index] = ref_act
+    for i, nh in enumerate(nhists[1:]):
+        lnpi[index] += nh[index].reweight(ratios[i])
 
-
-def shift_activity(states, ratio):
-    """Find the shift in free energy due to a change in the activity
-    of a species.
-
-    Args:
-        states: A dict with the keys 'bins' and 'counts': the
-            molecule number visited states distribution.
-        ratio: The ratio of the new activity to the old activity.
-
-    Returns:
-        The shift in the free energy as a float.
-    """
-    bins, counts = states['bins'], states['counts']
-
-    return (np.log(sum(counts * ratio ** (bins - bins[0]))) -
-            np.log(sum(counts)) + bins[0] * np.log(ratio))
-
-
-def shift_beta(states, difference):
-    """Find the shift in free energy due to a change in beta.
-
-    Args:
-        states: A dict with the keys 'bins' and 'counts': the energy
-            visited states distribution.
-        difference: The difference in beta (1 / kT).
-
-    Returns:
-        A float corresponding to the shift in the free energy.
-    """
-    bins, counts = states['bins'], states['counts']
-    if np.abs(difference) >= 1e15:
-        return (np.log(sum(counts * np.exp(-difference * bins))) -
-                np.log(sum(counts)))
-
-    return 0.0
-
-
-def solutions_to_weights(solutions, species_count=1, order_parameter=1,
-                         fractions=None):
-    """Converts the solutions returned by the coexistence finding
-    functions into a form used for finding the average molecule number
-    and composition of a phase.
-
-    Args:
-        solutions: A numpy array of activity ratios.
-        species_count: The number of species in the simulation.
-        order_parameter: The order parameter species, i.e., the
-            species represented by the ratios in the solutions.  Set
-            to 0 if the sum of activities was used as the order
-            parameter.
-        fractions: Required only for order_parameter=0; a list of the
-            activity fractions of the simulation.
-
-    Returns:
-        A numpy array with the appropriate weights to use for
-        averaging the molecule number histograms of a given Phase
-        object.
-
-    See Also:
-        Phase.composition(), Phase.nmol()
-    """
-    if order_parameter == 0:
-        old_activities = fractions_to_activities(fractions)
-        new_fractions = np.copy(fractions)
-        new_fractions[0] += np.log(solutions)
-        new_activities = fractions_to_activities(new_fractions)
-
-        return new_activities / old_activities
-
-    if species_count == 1:
-        return solutions
-
-    weights = np.ones([species_count, len(solutions)])
-    if order_parameter > 0:
-        weights[order_parameter] = solutions
-
-    return weights
+    return Phase(lnpi, nhists, act, beta=bb)

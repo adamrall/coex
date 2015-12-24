@@ -78,7 +78,7 @@ def expanded_ensemble_coefficients(valley, plateau, index, reference):
     return reference + (valley - valley[index]) - (plateau - plateau[index])
 
 
-def interface_potential(dist, area, beta):
+def interface_potential(lnpi, area, beta):
     """Convert a logarithmic probability distribution to an interface
     potential.
 
@@ -97,18 +97,15 @@ def interface_potential(dist, area, beta):
 
     Args:
 
-        dist: A distribution, i.e., a dict with keys 'param' and
-            'logp'.
+        lnpi: A numpy array with the logarithm of the probability
+            distribution.
         area: The x*y area of the simulation in m^2.
         beta: The thermodynamic beta (1/kT) of the simulation.
 
     Returns:
         A numpy array with the interface potential.
-
-    See Also:
-        read.read_lnpi() for the structure of the distribution.
     """
-    return -dist['logp'] / area / beta
+    return -lnpi / area / beta
 
 
 def spreading_coefficient(potential):
