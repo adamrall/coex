@@ -203,7 +203,7 @@ def read_phase(directory, index, fractions, beta=None):
         lnpi[index] += energy.reweight(beta - bb[index])
 
     zz = read_zz(os.path.join(directory, 'zz.dat'))
-    ref_act = fractions_to_activities(zz)
+    ref_act = fractions_to_activities(zz, direct=True)
     act = fractions_to_activities(fractions)
     ratios = np.log(act[:, index]) - np.log(ref_act)
     act[:, index] = ref_act
