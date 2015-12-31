@@ -1,4 +1,3 @@
-# TODO: finish updating documentation
 # direct.py
 # Copyright (C) 2015 Adam R. Rall <arall@buffalo.edu>
 #
@@ -42,10 +41,9 @@ class Simulation(object):
         lnpi: A numpy array with the logarithm of the probability
             distribution.
         nhists: A list of molecule number histograms.
-
-    See Also:
-        read.histogram() for a description of the structure of each
-        histogram.
+        init_act: A list with the initial activity of each species.
+        coex_act: A list with the coexistence activity of each
+            species.
     """
 
     def __init__(self, order_param, lnpi, nhists, activities):
@@ -86,7 +84,8 @@ class Simulation(object):
 
         Args:
             split: A float: where (as a fraction of the order
-                parameter range) the liquid/vapor phase boundary lies.
+                parameter range) the liquid/vapor phase boundary
+                lies.
 
         Returns:
             A (vapor, liquid) tuple of numpy arrays, each containing
@@ -102,7 +101,8 @@ class Simulation(object):
         return vapor, liquid
 
     def transform(self, amount):
-        """Perform linear transformation on a probability distribution.
+        """Perform linear transformation on a probability
+        distribution.
 
         Args:
             amount: The amount to shift the distribution using the
@@ -116,6 +116,10 @@ class Simulation(object):
 
 def coexistence(sim, species):
     """Find the coexistence point of a direct simulation.
+
+    The sim object is modified in place so that it contains the
+    coexistence logarithm of the probability distribution and
+    activities.
 
     Args:
         sim: A simulation object.
@@ -145,10 +149,11 @@ def read_simulation(directory, fractions):
 
     Args:
         directory: The directory containing the data.
+        fractions: A numpy array with the simulation's activity
+            fractions.
 
     Returns:
-        A Simulation object containing the logarithm of the
-        probability distribution and the molecule number histograms.
+        An initialized Simulation object.
     """
     lnpi_file = os.path.join(directory, 'lnpi_op.dat')
     order_param = read_order_parameter(lnpi_file)
