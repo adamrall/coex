@@ -1,4 +1,3 @@
-# TODO: finish updating documentation
 # activity.py
 # Copyright (C) 2015 Adam R. Rall <arall@buffalo.edu>
 #
@@ -29,10 +28,14 @@ def activities_to_fractions(activities, direct=False):
 
     Args:
         activities: A numpy array with the activities of the system.
+        direct: A bool that describes the shape of the input/output.
 
     Returns:
         A numpy array with the logarithm of the sum of the activities
         and the activity fractions of each species after the first.
+        If direct is True, the array is one-dimensional. Otherwise,
+        each column corresponds to a subensemble from an expanded
+        ensemble simulation.
 
     See Also:
         fractions_to_activities() for the opposite conversion.
@@ -52,9 +55,12 @@ def fractions_to_activities(fractions, direct=False):
 
     Args:
         fractions: A numpy array with the activity fractions.
+        direct: A bool that describes the shape of the input/output.
 
     Returns:
-        A numpy array with the activities.
+        A numpy array with the activities. If direct is True, the
+        array is one-dimensional. Otherwise, each column corresponds
+        to a subensemble from an expanded ensemble simulation.
 
     See Also:
         activities_to_fractions() for the opposite conversion.
