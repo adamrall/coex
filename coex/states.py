@@ -46,8 +46,7 @@ class VisitedStatesDistribution(object):
         return np.log(sum(shifted)) - np.log(sum(counts))
 
     def shift(self, amount):
-        return (sum(self.counts * np.exp(-amount * self.bins)) /
-                sum(self.counts))
+        return self.counts * np.exp(-amount * self.bins)
 
 
 def average_histogram(histogram, weights=None):
