@@ -25,7 +25,7 @@ from __future__ import division
 import numpy as np
 
 
-def cos_theta(s, d):
+def get_cos_theta(s, d):
     """Calculate the cosine of the contact angle.
 
     Args:
@@ -38,7 +38,7 @@ def cos_theta(s, d):
     return -(s - d) / (s + d)
 
 
-def drying_coefficient(potential):
+def get_drying_coefficient(potential):
     """Calculate the drying coefficient.
 
     Args:
@@ -57,7 +57,7 @@ def drying_coefficient(potential):
     return valley - plateau
 
 
-def expanded_ensemble_coefficients(valley, plateau, index, reference):
+def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     """Calculate the change in spreading/drying coefficient for a pair of
     simulations.
 
@@ -78,7 +78,7 @@ def expanded_ensemble_coefficients(valley, plateau, index, reference):
     return reference + (valley - valley[index]) - (plateau - plateau[index])
 
 
-def interface_potential(lnpi, area, beta):
+def get_interface_potential(lnpi, area, beta):
     """Convert a logarithmic probability distribution to an interface
     potential.
 
@@ -108,7 +108,7 @@ def interface_potential(lnpi, area, beta):
     return -lnpi / area / beta
 
 
-def spreading_coefficient(potential):
+def get_spreading_coefficient(potential):
     """Calculate the spreading coefficient.
 
     Args:
@@ -127,7 +127,7 @@ def spreading_coefficient(potential):
     return valley - plateau
 
 
-def tension(s, d):
+def get_tension(s, d):
     """Calculate the interfacial tension.
 
     Args:
