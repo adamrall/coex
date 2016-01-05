@@ -233,7 +233,7 @@ def get_two_phase_coexistence(first, second, species=1, x0=1.0):
             'weights': np.log(init_act) - np.log(coex_act)}
 
 
-def read_phase(path, is_tee=False):
+def read_data(path, is_tee=False):
     """Read the relevant data from an exapnded ensemble simulation
     directory.
 

@@ -143,7 +143,7 @@ def get_coexistence(sim, fractions, species):
             'weight': np.log(init_act) - np.log(coex_act)}
 
 
-def read_simulation(path):
+def read_data(path):
     """Read the relevant data from a simulation directory.
 
     Args:
