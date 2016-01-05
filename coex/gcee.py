@@ -30,7 +30,7 @@ from scipy.optimize import fsolve
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.read import read_bz, read_lnpi, read_zz
 from coex.states import average_histogram, read_all_molecule_histograms
-from coex.states import read_energy_distribution
+from coex.states import read_energy_distribution, reweight_distribution
 
 
 def get_composition(nhists, weights):
@@ -148,16 +148,18 @@ def get_two_phase_coexistence(first, second, species=1, x0=1.0):
     init_act = fractions_to_activities(first['fractions'])
 
     def objective(x, j):
-        return np.abs(first['lnpi'][j] + first_nhist[j].reweight(x) -
-                      second['lnpi'][j] - second_nhist[j].reweight(x))
+        fst = first['lnpi'][j] + reweight_distribution(first_nhist[j], x)
+        snd = second['lnpi'][j] + reweight_distribution(second_nhist[j], x)
+
+        return np.abs(fst - snd)
 
     for i in range(len(first['lnpi'])):
-        if i == first['index']:
+        if i == first['index'] or i == second['index']:
             continue
 
         solution = fsolve(objective, x0=x0, args=(i, ))
-        first_lnpi[i] += first_nhist[i].reweight(solution)
-        second_lnpi[i] += second_nhist[i].reweight(solution)
+        first_lnpi[i] += reweight_distribution(first_nhist[i], solution)
+        second_lnpi[i] += reweight_distribution(second_nhist[i], solution)
 
         if species == 0:
             frac = activities_to_fractions(init_act[:, i])
@@ -197,17 +199,18 @@ def read_phase(path, is_tee=False):
     return {'lnpi': lnpi, 'nhists': nhists, 'fractions': zz, 'path': path}
 
 
-def shift_phase(phase, index, fractions, beta=None):
+def prepare_phase(phase, index, fractions, beta=None):
     if beta is not None:
         energy = read_energy_distribution(phase['path'], index)
-        phase['lnpi'][index] += energy.reweight(beta - phase['beta'][index])
+        diff = beta - phase['beta'][index]
+        phase['lnpi'][index] += reweight_distribution(energy, diff)
 
     ref_act = fractions_to_activities(fractions, one_dimensional=True)
     act = fractions_to_activities(phase['fractions'])
     ratios = np.log(act[:, index]) - np.log(ref_act)
     act[:, index] = ref_act
     for i, nh in enumerate(phase['nhists'][1:]):
-        phase['lnpi'][index] += nh[index].reweight(ratios[i])
+        phase['lnpi'][index] += reweight_distribution(nh[index], ratios[i])
 
     res = {'lnpi': phase['lnpi'], 'fractions': activities_to_fractions(act),
            'nhists': phase['nhists'], 'path': phase['path'], 'index': index}
