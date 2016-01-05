@@ -34,7 +34,7 @@ class VisitedStatesDistribution(object):
 
     def average(self, weight=None):
         if weights is None:
-            reutrn sum(self.counts * self.bins) / sum(self.counts)
+            return sum(self.counts * self.bins) / sum(self.counts)
 
         shifted = self.shift(weight)
 
