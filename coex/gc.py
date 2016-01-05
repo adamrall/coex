@@ -138,20 +138,20 @@ def get_coexistence(sim, fractions, species):
             'weight': np.log(init_act) - np.log(coex_act)}
 
 
-def read_simulation(directory):
+def read_simulation(path):
     """Read the relevant data from a simulation directory.
 
     Args:
-        directory: The directory containing the data.
+        path: The directory containing the data.
 
     Returns:
         A dict with the order parameter, logarithm of the
         probability distribution, and molecule number visited states
         histograms.
     """
-    lnpi_file = os.path.join(directory, 'lnpi_op.dat')
+    lnpi_file = os.path.join(path, 'lnpi_op.dat')
     order_param = read_order_parameter(lnpi_file)
     lnpi = read_lnpi(lnpi_file)
-    nhists = read_all_molecule_histograms(directory)
+    nhists = read_all_molecule_histograms(path)
 
     return {'order_param': order_param, 'lnpi': lnpi, 'nhists': nhists}
