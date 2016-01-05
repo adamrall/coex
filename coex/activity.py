@@ -23,24 +23,24 @@ from __future__ import division
 import numpy as np
 
 
-def activities_to_fractions(activities, direct=False):
+def activities_to_fractions(activities, one_dimensional=False):
     """Convert a list of activities to activity fractions.
 
     Args:
         activities: A numpy array with the activities of the system.
-        direct: A bool that describes the shape of the input/output.
+        one_dimensional: A bool that describes the shape of the
+            input/output.
 
     Returns:
         A numpy array with the logarithm of the sum of the activities
         and the activity fractions of each species after the first.
-        If direct is True, the array is one-dimensional. Otherwise,
-        each column corresponds to a subensemble from an expanded
-        ensemble simulation.
+        If the array is multidimensional, each column corresponds to
+        a subensemble from an expanded ensemble simulation.
 
     See Also:
         fractions_to_activities() for the opposite conversion.
     """
-    if len(activities.shape) == 1 or (direct and len(activities) == 1):
+    if len(activities.shape) == 1 or (one_dimensional and len(activities) == 1):
         return np.log(activities)
 
     fractions = np.copy(activities)
@@ -50,22 +50,23 @@ def activities_to_fractions(activities, direct=False):
     return fractions
 
 
-def fractions_to_activities(fractions, direct=False):
+def fractions_to_activities(fractions, one_dimensional=False):
     """Convert a list of activity fractions to activities.
 
     Args:
         fractions: A numpy array with the activity fractions.
-        direct: A bool that describes the shape of the input/output.
+        one_dimensional: A bool that describes the shape of the
+            input/output.
 
     Returns:
-        A numpy array with the activities. If direct is True, the
-        array is one-dimensional. Otherwise, each column corresponds
-        to a subensemble from an expanded ensemble simulation.
+        A numpy array with the activities. If the array is
+        multidimensional, each column corresponds to a subensemble
+        from an expanded ensemble simulation.
 
     See Also:
         activities_to_fractions() for the opposite conversion.
     """
-    if len(fractions.shape) == 1 or (direct and len(fractions) == 1):
+    if len(fractions.shape) == 1 or (one_dimensional and len(fractions) == 1):
         return np.exp(fractions)
 
     activities = np.copy(fractions)
