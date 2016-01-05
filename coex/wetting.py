@@ -48,7 +48,7 @@ def get_drying_coefficient(potential):
         The drying coefficient in J/m^2.
 
     See also:
-        interface_potential(), get_spreading_coefficient()
+        get_interface_potential(), get_spreading_coefficient()
     """
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
@@ -72,7 +72,7 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
         subensemble.
 
     See Also:
-        interface_potential() for a description of the interface
+        get_interface_potential() for a description of the interface
         potential.
     """
     return reference + (valley - valley[index]) - (plateau - plateau[index])
@@ -118,7 +118,7 @@ def get_spreading_coefficient(potential):
         The spreading coefficient in J/m^2.
 
     See Also:
-        interface_potential(), get_drying_coefficient()
+        get_interface_potential(), get_drying_coefficient()
     """
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
