@@ -51,8 +51,7 @@ def get_composition(nhists, weights):
 
 
 def get_grand_potential(lnpi, nhist, is_vapor=False, is_tee=False):
-    """Calculate the grand potential of each subensemble in the
-    phase.
+    """Calculate the grand potential of each subensemble.
 
     This function walks the length of the expanded ensemble path
     (forwards or backwards) and uses the N=0 visited state
@@ -99,8 +98,7 @@ def get_grand_potential(lnpi, nhist, is_vapor=False, is_tee=False):
 
 
 def get_average_n(nhists, weights):
-    """Calculate the weighted average number of molecules in the
-    phase.
+    """Calculate the weighted average number of molecules.
 
     Returns:
         A numpy array with the number of molecules of each species
@@ -128,7 +126,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
 
     Notes:
         The first and second phases must already be shifted to their
-        appropriate reference points. See the prepare_phase()
+        appropriate reference points. See the prepare_data()
         function.
     """
     fst = first.copy()
@@ -160,7 +158,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, is_tee=False):
 
     Notes:
         The liquid and vapor phases must already be shifted to their
-        appropriate reference points. See the prepare_phase()
+        appropriate reference points. See the prepare_data()
         function.
     """
     liq = liquid.copy()
@@ -244,7 +242,7 @@ def read_data(path, is_tee=False):
 
     Returns:
         A dict with the logarithm of the probability distribution,
-        activitiy fractions, phase directory, molecule number visited
+        activitiy fractions, directory, molecule number visited
         states histograms, and, for TEE simulations, the
         thermodynamic beta (1/kT).
     """
@@ -261,22 +259,22 @@ def read_data(path, is_tee=False):
     return {'lnpi': lnpi, 'nhists': nhists, 'fractions': zz, 'path': path}
 
 
-def prepare_phase(phase, index, fractions, beta=None):
-    """Shift a phase to a reference point.
+def prepare_data(data, index, fractions, beta=None):
+    """Shift the data to a reference point.
 
     Args:
-        phase: A dict, as returned by read_phase().
+        data: A dict, as returned by read_data().
         index: The reference subensemble index.
         fractions: The reference activity fractions.
         beta: The reference thermodynamic beta (1/kT), required only
             for TEE simulations.
 
     Returns:
-        A copy of the phase data with the shifted logarithm of the
+        A copy of the data with the shifted logarithm of the
         probability distribution, activity fractions, and reference
         subensemble index.
     """
-    res = phase.copy()
+    res = data.copy()
     res['index'] = index
     if beta is not None:
         energy = read_energy_distribution(res['path'], index)
