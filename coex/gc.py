@@ -1,4 +1,3 @@
-# TODO: finish updating documentation
 # gc.py
 # Copyright (C) 2015 Adam R. Rall <arall@buffalo.edu>
 #
@@ -69,13 +68,13 @@ def get_grand_potential(lnpi):
     return np.log(prob[0] * 2.0)
 
 
-def get_average_n(nhists, weight, split=0.5):
+def get_average_n(nhists, weights, split=0.5):
     """Find the average number of molecules in each phase.
 
     Args:
         nhists: The molecule number visited states histograms.
-        weight: The logarithm of the initial order parameter activity
-            minus the logarithm of the coexistence activity.
+        weights: The logarithm of the initial activities minus the
+            logarithm of the coexistence activities.
         split: A float: where (as a fraction of the order parameter
             range) the liquid/vapor phase boundary lies.
 
@@ -83,11 +82,12 @@ def get_average_n(nhists, weight, split=0.5):
         A (vapor, liquid) tuple of numpy arrays, each containing
         the average number of molecules of each species.
     """
-    bound = split * len(nhists[1])
-    vapor = np.array([average_histogram(nh[:bound], weight)
-                      for nh in nhists[1:]])
-    liquid = np.array([average_histogram(nh[bound:], weight)
-                       for nh in nhists[1:]])
+    size = len(nhists[1])
+    bound = split * size
+    vapor = np.array([average_histogram(nh[:bound], np.tile(weights[i], size))
+                      for i, nh in enumerate(nhists[1:])])
+    liquid = np.array([average_histogram(nh[bound:], np.tile(weights[i], size))
+                       for i, nh in enumerate(nhists[1:])])
 
     return vapor, liquid
 
@@ -114,6 +114,11 @@ def get_coexistence(sim, fractions, species):
         fractions: A numpy array with the simulation's activity
             fractions.
         species: The simulation's order parmeter species.
+
+    Returns:
+        A dict with the coexistence logarithm of the probability
+        distribution, activity fractions, and histogram weights (for
+        use in finding the weighted average of N).
     """
     init_act = fractions_to_activities(fractions)
     split = int(0.5 * len(sim['order_param']))
