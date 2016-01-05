@@ -284,7 +284,7 @@ def prepare_phase(phase, index, fractions, beta=None):
         res['lnpi'][index] += reweight_distribution(energy, diff)
 
     ref_act = fractions_to_activities(fractions, one_dimensional=True)
-    act = fractions_to_activitiesres['fractions'])
+    act = fractions_to_activities(res['fractions'])
     ratios = np.log(act[:, index]) - np.log(ref_act)
     act[:, index] = ref_act
     res['fractions'] = activities_to_fractions(act)
