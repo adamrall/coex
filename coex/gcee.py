@@ -279,6 +279,7 @@ def prepare_data(data, index, fractions, beta=None):
     if beta is not None:
         energy = read_energy_distribution(res['path'], index)
         diff = beta - res['beta'][index]
+        res['beta'][index] = beta
         res['lnpi'][index] += reweight_distribution(energy, diff)
 
     ref_act = fractions_to_activities(fractions, one_dimensional=True)
