@@ -38,18 +38,19 @@ def get_cos_theta(s, d):
     return -(s - d) / (s + d)
 
 
-def get_drying_coefficient(potential):
+def get_drying_coefficient(lnpi):
     """Calculate the drying coefficient.
 
     Args:
-        potential: The interface potential of the simulation.
+        lnpi: The logarithm of the probability distribution.
 
     Returns:
-        The drying coefficient in J/m^2.
+        The dimensionless drying coefficient (beta*d*A).
 
     See also:
-        get_interface_potential(), get_spreading_coefficient()
+        get_spreading_coefficient()
     """
+    potential = -lnpi
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[:split])
@@ -62,64 +63,33 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     simulations.
 
     Args:
-        valley: The interface potential of the valley region.
-        plateau: The interface potential of the plateau region.
+        valley: The logarithm of the probability distribution of the
+            valley region.
+        plateau: The logarithm of the probability distribution of the
+            plateau region.
         index: The reference subensemble number.
         reference: The reference spreading/drying coefficient.
 
     Returns:
         A numpy array with the spreading/drying coefficient of each
         subensemble.
-
-    See Also:
-        get_interface_potential() for a description of the interface
-        potential.
     """
-    return reference + (valley - valley[index]) - (plateau - plateau[index])
+    return reference - (valley - valley[index]) + (plateau - plateau[index])
 
 
-def get_interface_potential(lnpi, area, beta):
-    """Convert a logarithmic probability distribution to an interface
-    potential.
-
-    The interface potential is the free energy required to form a
-    fluid film of a specified thickness.  In a partially wetting
-    system (i.e., one that would form a bubble/droplet of one phase on
-    a surface surrounded by another phase), the interface potential in
-    a direct simulation has a global minimum at near-zero fluid
-    thickness and a plateau for the formation of a thick film.  We use
-    the difference between these two regions to find a measure of the
-    spreading or drying coefficient of the system.  In an expanded
-    ensemble simulation, we track the two regions separately;
-    differences in the interface potential of each region can be
-    combined to find differences in the spreading or drying
-    coefficient with respect to some expanded ensemble path.
-
-    Args:
-
-        lnpi: A numpy array with the logarithm of the probability
-            distribution.
-        area: The x*y area of the simulation in m^2.
-        beta: The thermodynamic beta (1/kT) of the simulation.
-
-    Returns:
-        A numpy array with the interface potential.
-    """
-    return -lnpi / area / beta
-
-
-def get_spreading_coefficient(potential):
+def get_spreading_coefficient(lnpi):
     """Calculate the spreading coefficient.
 
     Args:
-        potential: The interface potential of the simulation.
+        potential: The logarithm of the probability distribution.
 
     Returns:
-        The spreading coefficient in J/m^2.
+        The dimensionless spreading coefficient (beta*s*A).
 
     See Also:
-        get_interface_potential(), get_drying_coefficient()
+        get_drying_coefficient()
     """
+    potential = -lnpi
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[split:])
@@ -135,6 +105,6 @@ def get_tension(s, d):
         d: A float (or numpy array): the drying coefficient.
 
     Returns:
-        The interfacial tension in SI units.
+        The interfacial tension in the appropriate units.
     """
     return -0.5 * (s + d)
