@@ -259,7 +259,7 @@ def read_data(path, is_tee=False):
     return {'lnpi': lnpi, 'nhists': nhists, 'fractions': zz, 'path': path}
 
 
-def prepare_data(data, index, fractions, beta=None):
+def shift_to_reference(data, index, fractions, beta=None):
     """Shift the data to a reference point.
 
     Args:
