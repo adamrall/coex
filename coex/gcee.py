@@ -203,6 +203,10 @@ def get_two_phase_coexistence(first, second, species=1, x0=1.0):
     second_lnpi = np.copy(second['lnpi'])
     second_nhist = second['nhists'][species]
     init_act = fractions_to_activities(first['fractions'])
+    if species == 0:
+        frac = np.copy(first['fractions'])
+    else:
+        coex_act = np.copy(init_act)
 
     def objective(x, j):
         fst = first['lnpi'][j] + reweight_distribution(first_nhist[j], x)
@@ -219,12 +223,13 @@ def get_two_phase_coexistence(first, second, species=1, x0=1.0):
         second_lnpi[i] += reweight_distribution(second_nhist[i], solution)
 
         if species == 0:
-            frac = activities_to_fractions(init_act[:, i])
-            frac[0] -= solution
-            coex_act = fractions_to_activities(frac)
+            frac[0, i] -= solution
         else:
             new = np.exp(np.log(init_act[species - 1, i]) - solution)
             coex_act[species - 1, i] = new
+
+    if species == 0:
+        coex_act = fractions_to_activities(frac)
 
     return {'first_lnpi': first_lnpi, 'second_lnpi': second_lnpi,
             'fractions': activities_to_fractions(coex_act),
