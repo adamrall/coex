@@ -166,7 +166,10 @@ def read_histogram(hist_path, lim_path):
     def parse_limits(line):
         sub, size, lower, upper, step = line
         bins = np.linspace(lower, upper, size)
-        counts = raw_hist[sub][0:size]
+        if len(raw_hist.shape) == 1:
+            counts = raw_hist[sub]
+        else:
+            counts = raw_hist[sub][0:size]
 
         return {'bins': bins, 'counts': counts}
 
