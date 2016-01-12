@@ -113,7 +113,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
 
     Args:
         first: The data for the first phase, as returned by
-            prepare_phase().
+            shift_to_reference().
         second: The data for the second phase.
         species: The species to use for histogram reweighting.
         grand_potential: The reference grand potential.
@@ -144,7 +144,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, is_tee=False):
 
     Args:
         liquid: The data for the liquid phase, as returned by
-            prepare_phase().
+            shift_to_reference().
         vapor: The data for the vapor phase.
         species: The species to use for histogram reweighting.
         is_tee: A bool denoting whether the simulation uses the
