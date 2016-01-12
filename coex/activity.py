@@ -23,12 +23,12 @@ from __future__ import division
 import numpy as np
 
 
-def activities_to_fractions(activities, one_dimensional=False):
+def activities_to_fractions(activities, one_subensemble=False):
     """Convert a list of activities to activity fractions.
 
     Args:
         activities: A numpy array with the activities of the system.
-        one_dimensional: A bool that describes the shape of the
+        one_subensemble: A bool that describes the shape of the
             input/output.
 
     Returns:
@@ -40,7 +40,8 @@ def activities_to_fractions(activities, one_dimensional=False):
     See Also:
         fractions_to_activities() for the opposite conversion.
     """
-    if len(activities.shape) == 1 or (one_dimensional and len(activities) == 1):
+    if ((not one_subensemble and len(activities.shape) == 1) or
+            (one_subensemble and len(activities) == 1)):
         return np.log(activities)
 
     fractions = np.copy(activities)
@@ -50,12 +51,12 @@ def activities_to_fractions(activities, one_dimensional=False):
     return fractions
 
 
-def fractions_to_activities(fractions, one_dimensional=False):
+def fractions_to_activities(fractions, one_subensemble=False):
     """Convert a list of activity fractions to activities.
 
     Args:
         fractions: A numpy array with the activity fractions.
-        one_dimensional: A bool that describes the shape of the
+        one_subensemble: A bool that describes the shape of the
             input/output.
 
     Returns:
@@ -66,7 +67,8 @@ def fractions_to_activities(fractions, one_dimensional=False):
     See Also:
         activities_to_fractions() for the opposite conversion.
     """
-    if len(fractions.shape) == 1 or (one_dimensional and len(fractions) == 1):
+    if ((not one_subensemble and len(fractions.shape) == 1) or
+            (one_subensemble and len(fractions) == 1)):
         return np.exp(fractions)
 
     activities = np.copy(fractions)

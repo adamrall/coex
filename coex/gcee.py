@@ -282,7 +282,7 @@ def shift_to_reference(data, index, fractions, beta=None):
         res['beta'][index] = beta
         res['lnpi'][index] += reweight_distribution(energy, diff)
 
-    ref_act = fractions_to_activities(fractions, one_dimensional=True)
+    ref_act = fractions_to_activities(fractions, one_subensemble=True)
     act = fractions_to_activities(res['fractions'])
     ratios = np.log(act[:, index]) - np.log(ref_act)
     act[:, index] = ref_act

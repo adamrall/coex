@@ -133,9 +133,9 @@ def get_coexistence(sim, fractions, species):
     solution = fsolve(objective, x0=1.0, maxfev=1000)
     lnpi = transform(sim['order_param'], sim['lnpi'], solution)
     if species == 0:
-        frac = activities_to_fractions(init_act, one_dimensional=True)
+        frac = activities_to_fractions(init_act, one_subensemble=True)
         frac[0] += solution
-        coex_act = fractions_to_activities(frac, one_dimensional=True)
+        coex_act = fractions_to_activities(frac, one_subensemble=True)
     else:
         coex_act[species - 1] *= np.exp(solution)
 
