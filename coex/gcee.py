@@ -289,7 +289,7 @@ def shift_to_reference(data, index, fractions, beta=None):
 
     ref_act = fractions_to_activities(fractions, one_subensemble=True)
     act = fractions_to_activities(res['fractions'])
-    ratios = np.log(act[:, index]) - np.log(ref_act)
+    ratios = np.nan_to_num(np.log(act[:, index]) - np.log(ref_act))
     act[:, index] = ref_act
     res['fractions'] = activities_to_fractions(act)
     for i, nh in enumerate(res['nhists'][1:]):
