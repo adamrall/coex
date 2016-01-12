@@ -231,9 +231,11 @@ def get_two_phase_coexistence(first, second, species=1, x0=1.0):
     if species == 0:
         coex_act = fractions_to_activities(frac)
 
+    weights = np.nan_to_num(np.log(init_act) - np.log(coex_act))
+
     return {'first_lnpi': first_lnpi, 'second_lnpi': second_lnpi,
             'fractions': activities_to_fractions(coex_act),
-            'weights': np.log(init_act) - np.log(coex_act)}
+            'weights': weights}
 
 
 def read_data(path, is_tee=False):
