@@ -83,16 +83,16 @@ def get_grand_potential(lnpi, nhist, is_vapor=False, is_tee=False):
 
     for num, i in enumerate(iter_range):
         states = nhist[i]
-        if states.bins[0] < 1.0e-8 and states.counts[0] > 1000:
-            gp[i] = np.log(states.counts[0] / sum(states.counts))
+        if states['bins'][0] < 1.0e-8 and states['counts'][0] > 1000:
+            gp[i] = np.log(states['counts'][0] / sum(states['counts']))
         else:
             if num == 0:
                 gp[i] = -lnpi[i]
             else:
                 if is_tee:
-                    gp[i] = gp[i + 1] - lnpi[i + 1] + lnpi[i]
+                    gp[i] = gp[i + 1] + lnpi[i + 1] - lnpi[i]
                 else:
-                    gp[i] = gp[i - 1] - lnpi[i - 1] + lnpi[i]
+                    gp[i] = gp[i - 1] + lnpi[i - 1] - lnpi[i]
 
     return gp
 
@@ -105,7 +105,7 @@ def get_average_n(nhists, weights):
         in each subensemble.
     """
     return np.array([average_histogram(hist, weights[i])
-                     for i, hist in enumerate(self.nhists[1:])])
+                     for i, hist in enumerate(nhists[1:])])
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
@@ -167,7 +167,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, is_tee=False):
                                        is_vapor=True, is_tee=is_tee)
     liq_idx = liq['index']
     vap_idx = vap['index']
-    liq['lnpi'] += liq['lnpi'][liq_idx] - vap['lnpi'][vap_idx]
+    liq['lnpi'] += vap['lnpi'][vap_idx] - liq['lnpi'][liq_idx]
 
     return get_two_phase_coexistence(liq, vap, species)
 
