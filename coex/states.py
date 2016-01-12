@@ -160,12 +160,12 @@ def read_histogram(hist_path, lim_path):
     Returns:
         A histogram, i.e., a list of distributions.
     """
-    raw_hist = np.transpose(np.loadtxt(hist_path))
+    raw_hist = np.transpose(np.loadtxt(hist_path))[1:]
     limits = np.loadtxt(lim_path)
 
     def parse_limits(line):
         sub, size, lower, upper, step = line
-        bins = np.linspace(lower, upper, step)
+        bins = np.linspace(lower, upper, size)
         counts = raw_hist[sub][0:size]
 
         return {'bins': bins, 'counts': counts}
