@@ -130,17 +130,20 @@ def get_coexistence(sim, fractions, species):
 
         return np.abs(vapor - liquid)
 
-    solution = fsolve(objective, x0=1.0, maxfev=1000)
+    solution = fsolve(objective, x0=1.0, maxfev=10000)
     lnpi = transform(sim['order_param'], sim['lnpi'], solution)
     if species == 0:
         frac = activities_to_fractions(init_act, one_subensemble=True)
         frac[0] += solution
         coex_act = fractions_to_activities(frac, one_subensemble=True)
     else:
+        coex_act = np.copy(init_act)
         coex_act[species - 1] *= np.exp(solution)
 
+    weight = np.nan_to_num(np.log(init_act) - np.log(coex_act))
+
     return {'lnpi': lnpi, 'fractions': activities_to_fractions(coex_act),
-            'weight': np.log(init_act) - np.log(coex_act)}
+            'weight': weight}
 
 
 def read_data(path):
