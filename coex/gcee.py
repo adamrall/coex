@@ -133,7 +133,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     snd = second.copy()
     for p in (fst, snd):
         idx = p['index']
-        p['lnpi'] += p['lnpi'][idx] - grand_potential
+        p['lnpi'] -= p['lnpi'][idx] + grand_potential
 
     return get_two_phase_coexistence(fst, snd, species)
 
