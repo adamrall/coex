@@ -28,6 +28,6 @@ setup(
     install_requires=['numpy', 'scipy'],
     author='Adam Rall',
     author_email='arall@buffalo.edu',
-    license='GPLv3',
+    license='BSD',
     keywords='molecular simulation',
 )
