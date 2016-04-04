@@ -158,6 +158,14 @@ def read_histogram(hist_path, lim_path):
     return [parse_limits(line) for line in limits]
 
 
+def read_histograms_from_runs(path, runs, hist_name):
+    lim_name = hist_name.replace('hist', 'lim')
+
+    return [read_histogram(os.path.join(path, r, hist_name),
+                              os.path.join(path, r, lim_name))
+            for r in sorted(runs)]
+
+
 def read_volume_histogram(hist_path, lim_path, uses_log_volume=False):
     """Read a volume visited states histogram from a pair of files.
 
@@ -181,3 +189,12 @@ def read_volume_histogram(hist_path, lim_path, uses_log_volume=False):
         dist['bins'] *= cubic_meters
 
     return hist
+
+
+def read_volume_histograms_from_runs(path, runs, uses_log_volume=False):
+    return [read_volume_histogram(os.path.join(path, r, 'vhist.dat'),
+                                  os.path.join(path, r, 'vlim.dat'),
+                                  uses_log_volume)
+            for r in sorted(runs)]
+
+
