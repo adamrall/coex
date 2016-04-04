@@ -198,3 +198,40 @@ def read_volume_histograms_from_runs(path, runs, uses_log_volume=False):
             for r in sorted(runs)]
 
 
+def write_histogram(hist_path, hist):
+    lim_name = os.path.basename(hist_path).replace('hist', 'lim')
+    lim_path = os.path.join(os.path.dirname(hist_path), lim_name)
+    most_sampled = 0
+    with open(lim_path, 'w') as f:
+        for i, dist in enumerate(hist):
+            sampled = len(dist['bins'])
+            min_bin = np.amin(dist['bins'])
+            max_bin = np.amax(dist['bins'])
+            step = dist['bins'][1] - dist['bins'][0]
+            print('{:8d} {:7d} {:15.7f} {:15.7f} {:15.7f}'.format(i, sampled,
+                                                                  min_bin,
+                                                                  max_bin,
+                                                                  step),
+                  file=f)
+            most_sampled = max(most_sampled, sampled)
+
+    raw_hist = np.zeros([most_sampled, len(hist) + 1])
+    raw_hist[:, 0] = range(1, most_sampled + 1)
+    for i, dist in enumerate(hist):
+        sampled = len(dist['counts'])
+        raw_hist[0:sampled, i + 1] = dist['counts']
+
+    np.savetxt(hist_path, raw_hist, fmt='%8.d', delimiter='  ')
+
+
+def write_volume_histogram(hist_path, hist, uses_log_volume=False):
+    # The conversion factor for cubic angstroms -> cubic meters.
+    cubic_meters = 1.0e-30
+
+    for dist in hist:
+        if uses_log_volume:
+            dist['bins'] = np.log(dist['bins'])
+
+        dist['bins'] /= cubic_meters
+
+    write_histogram(hist_path, hist)
