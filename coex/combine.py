@@ -6,6 +6,14 @@ import numpy as np
 
 
 def combine_histograms(hists):
+    """Combine a set of visited states histograms.
+
+    Args:
+        hists: A list of histograms.
+
+    Returns:
+        A histogram with the combined data.
+    """
     first_dist = hists[0][0]
     step = first_dist['bins'][1] - first_dist['bins'][0]
     subensembles = len(first_dist['bins'])
