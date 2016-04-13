@@ -88,7 +88,7 @@ def transform(order_param, lnpi, amount):
     return order_param * amount + lnpi
 
 
-def get_coexistence(sim, fractions, species):
+def get_coexistence(sim, fractions, species, x0=-0.001):
     """Find the coexistence point of a direct simulation.
 
     Args:
@@ -96,6 +96,7 @@ def get_coexistence(sim, fractions, species):
         fractions: A numpy array with the simulation's activity
             fractions.
         species: The simulation's order parmeter species.
+        x0: The initial guess for the optimization solver.
 
     Returns:
         A dict with the coexistence logarithm of the probability
@@ -112,7 +113,7 @@ def get_coexistence(sim, fractions, species):
 
         return np.abs(vapor - liquid)
 
-    solution = fsolve(objective, x0=1.0, maxfev=10000)
+    solution = fsolve(objective, x0=x0, maxfev=10000)
     lnpi = transform(sim['order_param'], sim['lnpi'], solution)
     if species == 0:
         frac = activities_to_fractions(init_act, one_subensemble=True)
