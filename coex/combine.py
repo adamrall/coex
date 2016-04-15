@@ -100,3 +100,33 @@ def combine_prop(path, runs, file_name):
     hits_sum[hits_sum < 1] = 1.0
 
     return index, np.transpose(weighted_sums / hits_sum)
+
+
+def combine_pzcnt(path, runs):
+    index = np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
+                       usecols=(0, ))
+
+    return index, sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
+                                  usecols=(1, )) for r in runs])
+
+
+def combine_all_pzhists(path, runs):
+    index, z_bins = np.loadtxt(os.path.join(path, runs[0], 'pzhist_01_01.dat'),
+                               usecols=(0, 1), unpack=True)
+    cnts = [np.loadtxt(os.path.join(path, r, 'pzcnt.dat'), usecols=(1, ))]
+    cnts_sum = susm(cnts)
+    cnts_sum[cnts_sum < 1] = 1.0
+
+    def read_pzhist(run, hist_file):
+        return np.loadtxt(os.path.join(path, run, hist_file))[:, 2:]
+
+    def combine_pzhist(hist_file):
+        weighted_sums = np.sum([read_pzhist(r, hist_file) * cnts[i]
+                                for i, r in enumerate(sorted(runs))], axis=0)
+        return weighted_sums / cnts_sum
+
+    hist_files = sorted([os.path.basename(f)
+                         for f in glob.glob(os.path.join(path, runs[0],
+                                                         'pzhist_*.dat'))])
+
+    return index, z_bins, {hf: combine_pzhist(hf) for hf in hist_files}
