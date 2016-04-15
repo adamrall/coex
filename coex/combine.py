@@ -1,8 +1,13 @@
 """Combine the output of several simulations."""
 
 from __future__ import division
+import glob
+import os.path
 
 import numpy as np
+
+from coex.states import read_histograms_from_runs
+from coex.states import read_volume_histograms_from_runs
 
 
 def combine_histograms(hists):
@@ -31,3 +36,23 @@ def combine_histograms(hists):
         return {'bins': bins, 'counts': counts}
 
     return [combine_subensemble(i) for i in range(subensembles)]
+
+
+def combine_ehist(path, runs):
+    hists = read_histograms_from_runs(path, runs, 'ehist.dat')
+
+    return combine_histograms(hists)
+
+
+def combine_all_nhists(path, runs):
+    hist_files = [os.path.basename(f)
+                  for f in glob.glob(os.path.join(runs[0],'nhist_*.dat'))]
+
+    return [combine_histograms(read_histograms_from_runs(path, runs, hf)
+            for hf in hist_files]
+
+
+def combine_vhist(path, runs, uses_log_volume=False):
+    hists = read_volume_histograms_from_runs(path, runs, uses_log_volume)
+
+    return combine_histograms(hists)
