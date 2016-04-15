@@ -56,3 +56,47 @@ def combine_vhist(path, runs, uses_log_volume=False):
     hists = read_volume_histograms_from_runs(path, runs, uses_log_volume)
 
     return combine_histograms(hists)
+
+
+def combine_hits_op(path, runs):
+    index = np.loadtxt(os.path.join(path, runs[0], 'hits_op.dat'),
+                       usecols=(0, ))
+
+    return index, sum([np.loadtxt(os.path.join(path, r, 'hits_op.dat'),
+                                  usecols=(1, )) for r in runs])
+
+
+def combine_hits_tr(path, runs):
+    index, sub, mol, stage = np.loadtxt(os.path.join(path, runs[0],
+                                                     'hits_tr.dat'),
+                                        usecols=(0, 1, 2, 3))
+    sum_hits = sum([np.loadtxt(os.path.join(path, r, 'hits_tr.dat'),
+                               usecols=(4, )) for r in runs])
+
+    return index, sub, mol, stage, sum_hits
+
+
+def combine_prop(path, runs, file_name):
+
+    def read_properties(run):
+        return np.transpose(np.loadtxt(os.path.join(path, run, file_name)))[1:]
+
+    if 'op' in file_name:
+        hits_file = 'hits_op.dat'
+        cols = (1, )
+    elif 'tr' in file_name:
+        hits_file = 'hits_tr.dat'
+        cols = (4, )
+    elif 'ex' in file_name:
+        hits_file = 'hits_ex.dat'
+        cols = (5, )
+
+    hits = [np.loadtxt(os.path.join(path, r, hits_file, usecols=cols)
+            for r in sorted(runs)]
+    index = np.loadtxt(os.path.join(path, runs[0], file_name), usecols=(0, ))
+    weighted_sums = np.sum([read_properties(r) * hits[i]
+                            for i, r in enumerate(sorted(runs))], axis=0)
+    hits_sum = sum(hits)
+    hits_sum[hits_sum < 1] = 1.0
+
+    return index, np.transpose(weighted_sums / hits_sum)
