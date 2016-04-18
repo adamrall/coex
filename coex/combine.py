@@ -48,7 +48,7 @@ def combine_all_nhists(path, runs):
     hist_files = [os.path.basename(f)
                   for f in glob.glob(os.path.join(runs[0],'nhist_*.dat'))]
 
-    return [combine_histograms(read_histograms_from_runs(path, runs, hf)
+    return [combine_histograms(read_histograms_from_runs(path, runs, hf))
             for hf in hist_files]
 
 
@@ -91,7 +91,7 @@ def combine_prop(path, runs, file_name):
         hits_file = 'hits_ex.dat'
         cols = (5, )
 
-    hits = [np.loadtxt(os.path.join(path, r, hits_file, usecols=cols)
+    hits = [np.loadtxt(os.path.join(path, r, hits_file), usecols=cols)
             for r in sorted(runs)]
     index = np.loadtxt(os.path.join(path, runs[0], file_name), usecols=(0, ))
     weighted_sums = np.sum([read_properties(r) * hits[i]
