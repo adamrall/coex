@@ -3,6 +3,7 @@
 import os.path
 
 import numpy as np
+import pandas as pd
 
 
 def find_poorly_sampled(transitions, cutoff):
@@ -24,11 +25,15 @@ def find_poorly_sampled(transitions, cutoff):
         A list of indices which don't meet the sampling quality
         threshold.
     """
-    avg = [np.mean(min(a[1], transitions[i + 1, 0]))
-           for i, a in enumerate(transitions[:-1])]
+    avg = np.mean([min(a[1], transitions[i + 1, 0])
+                   for i, a in enumerate(transitions[:-1])])
 
-    return [i for i, a in enumerate(transitions[:-1])
-            if min(a[1], transitions[i + 1, 0]) < cutoff * avg]
+    drop = np.tile(False, len(transitions))
+    for i, a in enumerate(transitions[:-1]):
+        if min(a[1], transitions[i + 1, 0]) < cutoff * avg:
+            drop[i] = True
+
+    return drop
 
 
 def smooth_op(path, order, cutoff):
@@ -47,17 +52,19 @@ def smooth_op(path, order, cutoff):
         the new estimate for the free energy of the order parameter
         path.
     """
-    index, lnpi = np.loadtxt(path, usecols=(0, 1), unpack=True)
-    transitions = np.loadtxt(os.path.join(os.path.dirname(path), 
+    op = pd.read_table(path, sep='\s+', usecols=(0, 1), header=None,
+                       names=('sub', 'lnpi'))
+    transitions = np.loadtxt(os.path.join(os.path.dirname(path),
                                           'pacc_op_cr.dat'),
                              usecols=(1, 2))
-    drop = find_poorly_sampled(transitions, cutoff)
-    diff = np.delete(np.diff(lnpi), drop)
-    diff_idx = np.delete(index, drop)
-    p = np.poly1d(np.polyfit(diff_idx, diff, order))
-    x = index[:-1]
-    
-    return index, np.append(0.0, np.cumsum(p(x)))
+    op['drop'] = find_poorly_sampled(transitions, cutoff)
+    op['diff'] = 0.0
+    op.loc[1:, 'diff'] = np.diff(op['lnpi'])
+    p = np.poly1d(np.polyfit(op['sub'], op['diff'], order))
+    op['new_lnpi'] = np.cumsum(p(op['sub']))
+    op['new_lnpi'] -= op.loc[0, 'new_lnpi']
+
+    return op
 
 
 def smooth_tr(path, order, cutoff):
@@ -76,40 +83,38 @@ def smooth_tr(path, order, cutoff):
         number, stage number, and new estimate for the free energy
         of each entry in the expanded ensemble growth path.
     """
-    index, sub, mol, stage, lnpi = np.loadtxt(path, usecols=(0, 1, 2, 3, 4),
-                                              unpack=True)
+    tr = pd.read_table(path, sep='\s+', usecols=(0, 1, 2, 3, 4), header=None,
+                       names=('number', 'sub', 'mol', 'stage', 'lnpi'))
     transitions = np.loadtxt(os.path.join(os.path.dirname(path),
                                           'pacc_tr_cr.dat'),
                              usecols=(4, 5))
-    drop = find_poorly_sampled(transitions, cutoff)
-    diff = np.diff(lnpi)
-    new_lnpi = np.zeros(len(lnpi))
-    fitted_diff = np.zeros(len(lnpi))
-    for m in np.unique(mol):
-        current_mol = np.where(mol == m)
-        diff_mol = diff[current_mol]
-        fit_mol = fitted_diff[current_mol]
-        index_mol = index[current_mol]
-        stage_mol = stage[current_mol]
-        for i in np.unique(stage_mol)[:-1]:
-            current_stage = np.where(stage_mol == i)
-            diff_stg = diff_mol[current_stage]
-            index_stg = index_mol[current_stage] - 1
-            y = np.delete(diff_stg, np.where(index_stg == drop))
-            x = range(len(diff_stg))
-            p = np.poly1d(np.polyfit(x, y, order))
-            fit_mol[current_stage] = p(x)
+    tr['drop'] = find_poorly_sampled(transitions, cutoff)
+    tr['diff'] = 0.0
+    tr['fit'] = 0.0
+    tr['new_lnpi'] = 0.0
+    for m in tr['mol'].unique():
+        mol = tr['mol'] == m
+        for s in tr.loc[mol, 'sub'].unique():
+            select = mol & (tr['sub'] == s)
+            diff = np.diff(tr.loc[select, 'lnpi'])
+            max_stage = tr.loc[mol, 'stage'].max()
+            tr.loc[select & (tr['stage'] < max_stage), 'diff'] = diff
 
-        lnpi_mol = lnpi[current_mol]
-        sub_mol = sub[current_mol]
-        for s in np.unique(sub_mol):
-            current_sub = np.where(sub_mol == s)
-            diff_sub = fit_mol[current_sub]
-            lnpi_mol[current_sub] = -np.cumsum(diff_sub[::-1])[::-1]
+        for i in tr.loc[mol, 'stage'].unique()[:-1]:
+            select = mol & (tr['stage'] == i)
+            y = tr.loc[select & (tr['drop'] == False)]['diff']
+            p = np.poly1d(np.polyfit(range(len(y)), y, order))
+            x = range(len(tr[select]))
+            tr.loc[select, 'fit'] = p(x)
 
-        new_lnpi[current_mol] = lnpi_mol[current_sub]
+        for s in tr.loc[mol, 'sub'].unique():
+            for i in reversed(tr.loc[mol, 'stage'].unique()[:-1]):
+                select = mol & (tr['sub'] == s) & (tr['stage'] == i)
+                next = mol & (tr['sub'] == s) & (tr['stage'] == i + 1)
+                tr.loc[select, 'new_lnpi'] = (tr.loc[next, 'new_lnpi'].values -
+                                              tr.loc[select, 'fit'])
 
-    return index, sub, mol, stage, new_lnpi
+    return tr
 
 
 def write_lnpi_op(path, index, lnpi):
