@@ -57,3 +57,8 @@ TAGS
 # OS stuff
 *humbs.db
 .DS_Store
+
+# PTVS stuff
+*.suo
+*.pyproj
+*.sln
