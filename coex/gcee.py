@@ -153,7 +153,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, is_tee=False):
     return get_two_phase_coexistence(liq, vap, species)
 
 
-def get_two_phase_coexistence(first, second, species=1, x0=1.0):
+def get_two_phase_coexistence(first, second, species=1, x0=0.01):
     """Find the coexistence point of two grand canonical expanded
     ensemble simulations.
 
