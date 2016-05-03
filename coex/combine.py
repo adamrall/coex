@@ -228,7 +228,14 @@ def combine_pacc_op(path, runs):
         transition attempts, and a numpy array with the acceptance
         probabilities.
     """
-    pass
+    paccs = [read_pacc_op(os.path.join(path, r, 'pacc_op_cr.dat'))
+             for r in runs]
+    out = {'index': paccs[0]['index']}
+    out['attempts'] = np.sum([p['attempts'] for p in paccs], axis=0)
+    out['prob'] = (np.sum([p['attempts'] * p['prob'] for p in paccs], axis=0) /
+                   out['attempts'])
+
+    return out
 
 
 def combine_pacc_tr(path, runs):
@@ -245,7 +252,15 @@ def combine_pacc_tr(path, runs):
         transition attempts, and a numpy array with the acceptance
         probabilities.
     """
-    pass
+    paccs = [read_pacc_tr(os.path.join(path, r, 'pacc_tr_cr.dat'))
+             for r in runs]
+    out = {'index': paccs[0]['index'], 'mol': paccs[0]['mol'],
+           'sub': pacccs[0]['sub'], 'stage': paccs[0]['stage']}
+    out['attempts'] = np.sum([p['attempts'] for p in paccs], axis=0)
+    out['prob'] = (np.sum([p['attempts'] * p['prob'] for p in paccs], axis=0) /
+                   out['attempts'])
+
+    return out
 
 
 def compute_lnpi_op(pacc, guess=None):
@@ -259,7 +274,18 @@ def compute_lnpi_op(pacc, guess=None):
     Returns:
         The computed order parameter free energy.
     """
-    pass
+    lnpi = np.zeros(len(pacc['index']))
+    if guess is None:
+        guess = np.copy(lnpi)
+
+    att, prob = pacc['attempts'], pacc['prob']
+    for i, dc in enumerate(np.diff(guess)):
+        lnpi[i + 1] = lnpi[i] + dc
+        if (att[i, 1] > min_attempts and att[i + 1, 0] > min_attempts and
+                prob[i, 1] > 0.0 and prob[i + 1, 0] > 0.0):
+            lnpi[i + 1] += np.log(prob[i, 1] / prob[i + 1, 0])
+
+    return lnpi
 
 
 def compute_lnpi_tr(pacc, guess=None):
@@ -273,4 +299,21 @@ def compute_lnpi_tr(pacc, guess=None):
     Returns:
         The computed growth expanded ensemble free energy.
     """
-    pass
+    lnpi = np.zeros(pacc['attempts'].shape[1])
+    if guess is None:
+        guess = np.copy(lnpi)
+
+    att, prob = pacc['attempts'], pacc['prob']
+    mol, sub, stage = pacc['mol'], pacc['sub'], pacc['stage']
+    for m in np.unique(mol):
+        for s in np.unique(sub):
+            for g in stage[curr_sub][-1::-1]:
+                sel = (mol == m) & (sub == s)
+                curr = sel & (stage == g)
+                next = sel & (stage == g + 1)
+                lnpi[curr] = lnpi[next] + guess[curr] - guess[next]
+                if (att[curr, 1] > min_attempts and att[next, 0] > min_attempts and
+                        prob[curr, 1] > 0.0 and prob[next, 0] > 0.0):
+                    lnpi[curr] -= np.log(prob[curr, 1] / prob[next, 0])
+
+    return lnpi
