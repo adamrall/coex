@@ -54,6 +54,44 @@ def read_lnpi_tr(path):
             'lnpi': lnpi}
 
 
+def read_pacc_op(path):
+    """Read the order parameter transition matrix from a
+    pacc_op_cr.dat or pacc_op_ag.dat file.
+
+    Args:
+        path: The location of the file.
+
+    Returns:
+        A dict with the order parameter values, the forward and
+        reverse transition attempts (as a numpy array), and the
+        optimized Metropolis forward and reverse transition
+        probabilities.
+    """
+    raw = np.loadtxt(path, usecols=(0, 1, 2, 3, 4))
+
+    return {'index': raw[:, 0], 'attempts': raw[:, 1:3], 'prob': raw[:, 3:]}
+
+
+def read_pacc_tr(path):
+    """Read the growth expanded ensemble transition matrix from a
+    pacc_tr_cr.dat or pacc_tr_ag.dat file.
+
+    Args:
+        path: The location of the file.
+
+    Returns:
+        A dict with the growth expanded ensemble index, the order
+        parameter values, the species IDs, the growth stage values,
+        the forward and reverse transition attempts (as a numpy
+        array), and the optimized Metropolis forward and reverse
+        transition probabilities.
+    """
+    raw = np.loadtxt(path, usecols=(0, 1, 2, 3, 4, 5, 6, 7))
+
+    return {'index': raw[:, 0], 'sub': raw[:, 1], 'mol': raw[:, 2],
+            'stage': raw[:, 3], 'attempts': raw[:, 4:6], 'prob': raw[:, 6:]}
+
+
 def read_zz(path):
     """Read the activity fractions of an AFEE simulation.
 
