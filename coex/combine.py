@@ -312,8 +312,9 @@ def compute_lnpi_tr(pacc, guess=None):
                 curr = sel & (stage == g)
                 next = sel & (stage == g + 1)
                 lnpi[curr] = lnpi[next] + guess[curr] - guess[next]
-                if (att[curr, 1] > min_attempts and att[next, 0] > min_attempts and
-                        prob[curr, 1] > 0.0 and prob[next, 0] > 0.0):
+                if (att[curr, 1] > min_attempts and
+                        att[next, 0] > min_attempts and prob[curr, 1] > 0.0 and
+                        prob[next, 0] > 0.0):
                     lnpi[curr] -= np.log(prob[curr, 1] / prob[next, 0])
 
     return lnpi
