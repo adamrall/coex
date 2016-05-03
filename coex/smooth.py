@@ -4,7 +4,6 @@ import os.path
 
 import numpy as np
 
-from coex.read import read_lnpi_op
 
 def find_poorly_sampled(attempts, cutoff):
     """Determine which subensemble/molecule/growth stage combinations
@@ -36,57 +35,56 @@ def find_poorly_sampled(attempts, cutoff):
     return drop
 
 
-def smooth_op(path, order, cutoff):
+def smooth_op(op, order, drop=None):
     """Perform curve fitting on the order parameter free energy
     differences to produce a new estimate of the free energy.
 
     Args:
-        path: The location of the lnpi_op file.
+        op: A dict containing the order parameter values and free
+            energy.
         order: The order of the polynomial used to fit the free
             energy differences.
-        cutoff: The fraction of the mean transitions to use as a
-            threshold for sampling quality.
+        drop: A boolean numpy array denoting whether to drop each
+            subensemble prior to fitting.
 
     Returns:
         A dict containing the subensemble index and the new estimate
         for the free energy of the order parameter path.
     """
-    op = read_lnpi_op(path)
-    transitions = np.loadtxt(os.path.join(os.path.dirname(path),
-                                          'pacc_op_cr.dat'),
-                             usecols=(1, 2))
-    drop = find_poorly_sampled(transitions, cutoff)
+    if drop is None:
+        drop = np.tile(False, len(op['lnpi']))
+
     diff = np.diff(op['lnpi'])
-    p = np.poly1d(np.polyfit(range(len(diff)), diff, order))
+    y = diff[~drop]
+    p = np.poly1d(np.polyfit(range(len(y)), y, order))
 
     return {'index': op['index'],
             'lnpi': np.append(0.0, np.cumsum(p(op['index'][1:])))}
 
 
-def smooth_tr(path, order, cutoff):
+def smooth_tr(tr, order, drop=None):
     """Perform curve fitting on the growth expanded ensemble free
     energy differences to produce a new estimate of the free energy.
 
     Args:
-        path: The location of the lnpi_tr file.
+        tr: A dict containing the growth expanded ensemble data; see
+            coex.read.read_lnpi_tr().
         order: The order of the polynomial used to fit the free
             energy differences.
-        cutoff: The fraction of the mean transitions to use as a
-            threshold for sampling quality.
+        drop: A boolean numpy array denoting whether to drop each
+            entry prior to fitting.
 
     Returns:
         A dict containing the index, molecule number, stage number,
         and new estimate for the free energy of each entry in the
         expanded ensemble growth path.
     """
-    tr = read_lnpi_tr(path)
-    transitions = np.loadtxt(os.path.join(os.path.dirname(path),
-                                          'pacc_tr_cr.dat'),
-                             usecols=(4, 5))
-    drop = find_poorly_sampled(transitions, cutoff)
     size = len(tr['lnpi'])
     mol, sub, stage = tr['mol'], tr['sub'], tr['stage']
     diff, fit, new_lnpi = np.zeros(size), np.zeros(size), np.zeros(size)
+    if drop is None:
+        drop = np.tile(False, size)
+
     for m in np.unique(mol):
         curr_mol = (mol == m)
         mol_subs = np.unique(sub[curr_mol])
@@ -109,6 +107,7 @@ def smooth_tr(path, order, cutoff):
                 next_stage = curr_mol & curr_sub & (stage == i + 1)
                 new_lnpi[curr_stage] = new_lnpi[next_stage] - fit[curr_stage]
 
-    tr['lnpi'] = new_lnpi
+    out = dict.copy(tr)
+    out['lnpi'] = new_lnpi
 
-    return tr
+    return out
