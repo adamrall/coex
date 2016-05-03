@@ -5,14 +5,15 @@ import os.path
 import numpy as np
 
 
-def find_poorly_sampled(attempts, cutoff):
+def find_poorly_sampled_attempts(attempts, cutoff):
     """Determine which subensemble/molecule/growth stage combinations
     are not adequately sampled.
 
     For each combination, we take the minimum of the number of
-    forward and backward transitions. If this number is less than the
-    average over all combinations times some cutoff fraction, then we
-    add it to the list of poorly sampled combinations.
+    forward and backward transition attempts. If this number is less
+    than the average over all combinations times some cutoff
+    fraction, then we add it to the list of poorly sampled
+    combinations.
 
     Args:
         attempts: A 2D numpy array with the count of forward and
@@ -35,7 +36,7 @@ def find_poorly_sampled(attempts, cutoff):
     return drop
 
 
-def smooth_op(op, order, drop=None):
+def smooth_lnpi_op(op, order, drop=None):
     """Perform curve fitting on the order parameter free energy
     differences to produce a new estimate of the free energy.
 
@@ -62,7 +63,7 @@ def smooth_op(op, order, drop=None):
             'lnpi': np.append(0.0, np.cumsum(p(op['index'][1:])))}
 
 
-def smooth_tr(tr, order, drop=None):
+def smooth_lnpi_tr(tr, order, drop=None):
     """Perform curve fitting on the growth expanded ensemble free
     energy differences to produce a new estimate of the free energy.
 
