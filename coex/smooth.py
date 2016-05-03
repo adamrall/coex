@@ -6,8 +6,7 @@ import numpy as np
 
 from coex.read import read_lnpi_op
 
-
-def find_poorly_sampled(transitions, cutoff):
+def find_poorly_sampled(attempts, cutoff):
     """Determine which subensemble/molecule/growth stage combinations
     are not adequately sampled.
 
@@ -17,8 +16,8 @@ def find_poorly_sampled(transitions, cutoff):
     add it to the list of poorly sampled combinations.
 
     Args:
-        transitions: A 2D numpy array with the count of forward and
-            backward transitions for each subensemble.
+        attempts: A 2D numpy array with the count of forward and
+            reverse transition attempts for each subensemble.
         cutoff: The fraction of the mean to use as a threshold for
             sampling quality.
 
@@ -26,12 +25,12 @@ def find_poorly_sampled(transitions, cutoff):
         A list of indices which don't meet the sampling quality
         threshold.
     """
-    avg = np.mean([min(a[1], transitions[i + 1, 0])
-                   for i, a in enumerate(transitions[:-1])])
+    avg = np.mean([min(a[1], attempts[i + 1, 0])
+                   for i, a in enumerate(attempts[:-1])])
 
-    drop = np.tile(False, len(transitions))
-    for i, a in enumerate(transitions[:-1]):
-        if min(a[1], transitions[i + 1, 0]) < cutoff * avg:
+    drop = np.tile(False, len(attempts))
+    for i, a in enumerate(attempts[:-1]):
+        if min(a[1], attempts[i + 1, 0]) < cutoff * avg:
             drop[i] = True
 
     return drop
