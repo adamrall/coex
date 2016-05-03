@@ -10,38 +10,48 @@ def read_bz(path):
         path: The location of the 'bz.dat' file to read.
 
     Returns:
-        A (beta, activity fractions) tuple of numpy arrays.
+        A dict containing numpy arrays of beta and the activity
+        fractions.
     """
     # Truncate the first column, which just contains an index, read
     # beta separately, and transpose the rest.
     beta = np.loadtxt(path, usecols=(1, ))
     zz = np.transpose(np.loadtxt(path))[2:]
 
-    return beta, zz
+    return {'beta': beta, 'fractions': zz}
 
 
-def read_order_parameter(path):
-    """Read the simulation order parameter from an lnpi_op.dat file.
+def read_lnpi_op(path):
+    """Read the order parameter free energy from an lnpi_op.dat file.
 
     Args:
         path: The location of the file.
 
     Returns:
-        A numpy array.
+        A dict with the order parameter values and free energy.
     """
-    return np.loadtxt(path, usecols=(0, ))
+    index, lnpi = np.loadtxt(path, usecols=(0, 1), unpack=True)
+
+    return {'index': index, 'lnpi': lnpi}
 
 
-def read_lnpi(path):
-    """Read the logarithmic probability distribution from a file.
+def read_lnpi_tr(path):
+    """Read the growth expanded ensemble free energy from an
+    lnpi_tr.dat file.
 
     Args:
-        path: The location of the lnpi_op.dat file.
+        path: The location of the file.
 
     Returns:
-        A numpy array.
+        A dict containing the index, molecule number, stage number,
+        and free energy of each entry in the expanded ensemble growth
+        path.
     """
-    return np.loadtxt(path, usecols=(1, ))
+    index, sub, mol, stage, lnpi = np.loadtxt(path, usecols=(0, 1, 2, 3, 4),
+                                              unpack=True)
+
+    return {'index': index, 'sub': sub, 'mol': mol, 'stage': stage,
+            'lnpi': lnpi}
 
 
 def read_zz(path):

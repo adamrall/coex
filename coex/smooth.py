@@ -4,6 +4,8 @@ import os.path
 
 import numpy as np
 
+from coex.read import read_lnpi_op
+
 
 def find_poorly_sampled(transitions, cutoff):
     """Determine which subensemble/molecule/growth stage combinations
@@ -47,20 +49,19 @@ def smooth_op(path, order, cutoff):
             threshold for sampling quality.
 
     Returns:
-        A tuple of numpy arrays containing the subensemble index and
-        the new estimate for the free energy of the order parameter
-        path.
+        A dict containing the subensemble index and the new estimate
+        for the free energy of the order parameter path.
     """
-    index, lnpi = np.loadtxt(path, usecols=(0, 1), unpack=True)
+    op = read_lnpi_op(path)
     transitions = np.loadtxt(os.path.join(os.path.dirname(path),
                                           'pacc_op_cr.dat'),
                              usecols=(1, 2))
     drop = find_poorly_sampled(transitions, cutoff)
-    diff = np.diff(lnpi)
+    diff = np.diff(op['lnpi'])
     p = np.poly1d(np.polyfit(range(len(diff)), diff, order))
-    x = index[1:]
 
-    return index, np.append(0.0, np.cumsum(p(x)))
+    return {'index': op['index'],
+            'lnpi': np.append(0.0, np.cumsum(p(op['index'][1:])))}
 
 
 def smooth_tr(path, order, cutoff):
@@ -75,33 +76,32 @@ def smooth_tr(path, order, cutoff):
             threshold for sampling quality.
 
     Returns:
-        A tuple of numpy arrays containing the index, molecule
-        number, stage number, and new estimate for the free energy
-        of each entry in the expanded ensemble growth path.
+        A dict containing the index, molecule number, stage number,
+        and new estimate for the free energy of each entry in the
+        expanded ensemble growth path.
     """
-    index, sub, mol, stage, lnpi = np.loadtxt(path, usecols=(0, 1, 2, 3, 4),
-                                              unpack=True)
+    tr = read_lnpi_tr(path)
     transitions = np.loadtxt(os.path.join(os.path.dirname(path),
                                           'pacc_tr_cr.dat'),
                              usecols=(4, 5))
     drop = find_poorly_sampled(transitions, cutoff)
-    diff = np.zeros(len(lnpi))
-    fit = np.zeros(len(lnpi))
-    new_lnpi = np.zeros(len(lnpi))
+    size = len(tr['lnpi'])
+    mol, sub, stage = tr['mol'], tr['sub'], tr['stage']
+    diff, fit, new_lnpi = np.zeros(size), np.zeros(size), np.zeros(size)
     for m in np.unique(mol):
         curr_mol = (mol == m)
         mol_subs = np.unique(sub[curr_mol])
         mol_stages = np.unique(stage[curr_mol])[:-1]
         for s in mol_subs:
             curr_sub = curr_mol & (sub == s)
-            max_stage = np.amax(stage[curr_sub])
-            diff[curr_sub & (stage < max_stage)] = np.diff(lnpi[curr_sub])
+            not_max = stage < np.amax(stage[curr_sub])
+            diff[curr_sub & not_max] = np.diff(tr['lnpi'][curr_sub])
 
         for i in mol_stages:
             curr_stage = curr_mol & (stage == i)
             y = diff[curr_stage & ~drop]
             p = np.poly1d(np.polyfit(range(len(y)), y, order))
-            fit[curr_stage] = p(range(len(lnpi[curr_stage])))
+            fit[curr_stage] = p(range(len(curr_stage)))
 
         for s in mol_subs:
             curr_sub = (sub == s)
@@ -110,4 +110,6 @@ def smooth_tr(path, order, cutoff):
                 next_stage = curr_mol & curr_sub & (stage == i + 1)
                 new_lnpi[curr_stage] = new_lnpi[next_stage] - fit[curr_stage]
 
-    return index, sub, mol, stage, new_lnpi
+    tr['lnpi'] = new_lnpi
+
+    return tr

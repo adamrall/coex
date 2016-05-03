@@ -47,9 +47,8 @@ def combine_ehist(path, runs):
     Returns:
         A combined energy histogram.
     """
-    hists = read_histograms_from_runs(path, runs, 'ehist.dat')
-
-    return combine_histograms(hists)
+    return combine_histograms(read_histograms_from_runs(path, runs,
+                                                        'ehist.dat'))
 
 
 def combine_all_nhists(path, runs):
@@ -96,14 +95,13 @@ def combine_hits_op(path, runs):
         runs: The list of runs to combine.
 
     Returns:
-        A tuple containing the order parameter values and the combined
+        A dict containing the order parameter values and the combined
         hits for each value.
     """
-    index = np.loadtxt(os.path.join(path, runs[0], 'hits_op.dat'),
-                       usecols=(0, ))
-
-    return index, sum([np.loadtxt(os.path.join(path, r, 'hits_op.dat'),
-                                  usecols=(1, )) for r in runs])
+    return {'index': np.loadtxt(os.path.join(path, runs[0], 'hits_op.dat'),
+                                usecols=(0, )),
+            'hits': sum([np.loadtxt(os.path.join(path, r, 'hits_op.dat'),
+                                    usecols=(1, )) for r in runs])}
 
 
 def combine_hits_tr(path, runs):
@@ -114,17 +112,17 @@ def combine_hits_tr(path, runs):
         runs: The list of runs to combine.
 
     Returns:
-        A tuple containing the first five columns of the combined
+        A dict containing the first five columns of the combined
         hits_tr.dat file, i.e., the index, order parameter value,
         species ID, growth stage, and combined number of hits.
     """
     index, sub, mol, stage = np.loadtxt(os.path.join(path, runs[0],
                                                      'hits_tr.dat'),
                                         usecols=(0, 1, 2, 3))
-    sum_hits = sum([np.loadtxt(os.path.join(path, r, 'hits_tr.dat'),
-                               usecols=(4, )) for r in runs])
 
-    return index, sub, mol, stage, sum_hits
+    return {'index': index, 'sub': sub, 'mol': mol, 'stage': stage,
+            'hits': sum([np.loadtxt(os.path.join(path, r, 'hits_tr.dat'),
+                                    usecols=(4, )) for r in runs])}
 
 
 def combine_prop(path, runs, file_name):
@@ -137,7 +135,7 @@ def combine_prop(path, runs, file_name):
             or 'prop_ex.dat'.
 
     Returns:
-        A tuple containing the index column and a numpy array with the
+        A dict containing the index column and a numpy array with the
         remaining columns of the combined property files.
     """
 
@@ -162,7 +160,7 @@ def combine_prop(path, runs, file_name):
     hits_sum = sum(hits)
     hits_sum[hits_sum < 1] = 1.0
 
-    return index, np.transpose(weighted_sums / hits_sum)
+    return {'index': index, 'prop': np.transpose(weighted_sums / hits_sum)}
 
 
 def combine_pzcnt(path, runs):
@@ -173,14 +171,14 @@ def combine_pzcnt(path, runs):
         runs: The list of runs to combine.
 
     Returns:
-        A tuple containing the index and combined density histogram
+        A dict containing the index and combined density histogram
         counts for each order parameter value.
     """
-    index = np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
-                       usecols=(0, ))
-
-    return index, sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
-                                  usecols=(1, )) for r in runs])
+    return {'index': np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
+                                usecols=(0, )),
+            'counts': sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
+                                                   usecols=(1, ))
+                           for r in runs])}
 
 
 def combine_all_pzhists(path, runs):
@@ -191,9 +189,8 @@ def combine_all_pzhists(path, runs):
         runs: The list of runs to combine.
 
     Returns:
-        A tuple containing the density histogram index, z distance
-        bins, and a dict with the combined histograms, indexed by
-        file name.
+        A dict containing the density histogram index, z distance
+        bins, and the combined histograms, indexed by file name.
     """
     index, z_bins = np.loadtxt(os.path.join(path, runs[0], 'pzhist_01_01.dat'),
                                usecols=(0, 1), unpack=True)
@@ -212,5 +209,68 @@ def combine_all_pzhists(path, runs):
     hist_files = sorted([os.path.basename(f)
                          for f in glob.glob(os.path.join(path, runs[0],
                                                          'pzhist_*.dat'))])
+    out = {hf: combine_pzhist(hf) for hf in hist_files}
+    out['index'] = index
+    out['z_bins'] = z_bins
 
-    return index, z_bins, {hf: combine_pzhist(hf) for hf in hist_files}
+    return out
+
+
+def combine_pacc_op(path, runs):
+    """Combine a set of order parameter transition matrix files.
+
+    Args:
+        path: The base path containing the data to combine.
+        runs: The list of runs to combine.
+
+    Returns:
+        A dict containing the index column, a numpy array with the
+        transition attempts, and a numpy array with the acceptance
+        probabilities.
+    """
+    pass
+
+
+def combine_pacc_tr(path, runs):
+    """Combine a set of growth expanded ensemble transition matrix
+    files.
+
+    Args:
+        path: The base path containing the data to combine.
+        runs: The list of runs to combine.
+
+    Returns:
+        A dict containing the index, order parameter value, species
+        ID, and growth stage columns, a numpy array with the
+        transition attempts, and a numpy array with the acceptance
+        probabilities.
+    """
+    pass
+
+
+def compute_lnpi_op(pacc, guess=None):
+    """Compute the order parameter free energy using the transition
+    matrix.
+
+    Args:
+        pacc: A dict with the transition matrix data.
+        guess: An initial guess for the free energy.
+
+    Returns:
+        The computed order parameter free energy.
+    """
+    pass
+
+
+def compute_lnpi_tr(pacc, guess=None):
+    """Compute the growth expanded ensemble free energy using the
+    transition matrix.
+
+    Args:
+        pacc: A dict with the transition matrix data.
+        guess: An initial guess for the free energy.
+
+    Returns:
+        The computed growth expanded ensemble free energy.
+    """
+    pass

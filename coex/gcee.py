@@ -8,7 +8,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.read import read_bz, read_lnpi, read_zz
+from coex.read import read_bz, read_lnpi_op, read_zz
 from coex.states import average_histogram, read_all_molecule_histograms
 from coex.states import read_energy_distribution, reweight_distribution
 
@@ -234,7 +234,7 @@ def read_data(path, is_tee=False):
         states histograms, and, for TEE simulations, the
         thermodynamic beta (1/kT).
     """
-    lnpi = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
+    lnpi = read_lnpi_op(os.path.join(path, 'lnpi_op.dat'))['lnpi']
     nhists = read_all_molecule_histograms(path)
     if is_tee:
         bb, zz = read_bz(os.path.join(path, 'bz.dat'))

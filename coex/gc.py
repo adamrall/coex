@@ -8,7 +8,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.read import read_order_parameter, read_lnpi
+from coex.read import read_order_parameter, read_lnpi_op
 from coex.states import average_histogram, read_all_molecule_histograms
 
 
@@ -139,9 +139,7 @@ def read_data(path):
         probability distribution, and molecule number visited states
         histograms.
     """
-    lnpi_file = os.path.join(path, 'lnpi_op.dat')
-    order_param = read_order_parameter(lnpi_file)
-    lnpi = read_lnpi(lnpi_file)
+    op = read_lnpi_op(os.path.join(path, 'lnpi_op.dat'))
     nhists = read_all_molecule_histograms(path)
 
-    return {'order_param': order_param, 'lnpi': lnpi, 'nhists': nhists}
+    return {'order_param': op['index'], 'lnpi': op['lnpi'], 'nhists': nhists}
