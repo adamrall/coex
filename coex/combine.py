@@ -1,6 +1,5 @@
 """Combine the output of several simulations."""
 
-from __future__ import division
 import glob
 import os.path
 

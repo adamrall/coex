@@ -2,7 +2,6 @@
 simulations.
 """
 
-from __future__ import division
 import os.path
 
 import numpy as np

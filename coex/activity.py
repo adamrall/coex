@@ -1,7 +1,5 @@
 """Convert activity fractions to activities and vice versa."""
 
-from __future__ import division
-
 import numpy as np
 
 

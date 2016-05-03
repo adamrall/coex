@@ -10,7 +10,6 @@ states distribution would provide a new free energy given a change
 in the thermodynamic beta (1/kT).
 """
 
-from __future__ import division
 import glob
 import os.path
 
