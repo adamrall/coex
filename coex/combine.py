@@ -263,16 +263,19 @@ def combine_pacc_tr(path, runs):
     return out
 
 
-def compute_lnpi_op(pacc, guess=None):
+def compute_lnpi_op(pacc, guess=None, min_attempts=1):
     """Compute the order parameter free energy using the transition
     matrix.
 
     Args:
         pacc: A dict with the transition matrix data.
         guess: An initial guess for the free energy.
+        min_attempts: The threshold for considering a transition
+            adequately sampled.
 
     Returns:
-        The computed order parameter free energy.
+        A dict with the order parameter values and the computed order
+        parameter free energy.
     """
     lnpi = np.zeros(len(pacc['index']))
     if guess is None:
@@ -285,21 +288,25 @@ def compute_lnpi_op(pacc, guess=None):
                 prob[i, 1] > 0.0 and prob[i + 1, 0] > 0.0):
             lnpi[i + 1] += np.log(prob[i, 1] / prob[i + 1, 0])
 
-    return lnpi
+    return {'index': pacc['index'], 'lnpi': lnpi}
 
 
-def compute_lnpi_tr(pacc, guess=None):
+def compute_lnpi_tr(pacc, guess=None, min_attempts=1):
     """Compute the growth expanded ensemble free energy using the
     transition matrix.
 
     Args:
         pacc: A dict with the transition matrix data.
         guess: An initial guess for the free energy.
+        min_attempts: The threshold for considering a transition
+            adequately sampled.
 
     Returns:
-        The computed growth expanded ensemble free energy.
+        A dict with the index, subensemble number, molecule number,
+        stage number, and the computed growth expanded ensemble free
+        energy.
     """
-    lnpi = np.zeros(pacc['attempts'].shape[1])
+    lnpi = np.zeros(len(pacc['index']))
     if guess is None:
         guess = np.copy(lnpi)
 
@@ -317,4 +324,5 @@ def compute_lnpi_tr(pacc, guess=None):
                         prob[next, 0] > 0.0):
                     lnpi[curr] -= np.log(prob[curr, 1] / prob[next, 0])
 
-    return lnpi
+    return {'index': pacc['index'], 'mol': pacc['mol'], 'sub': pacc['sub'],
+            'stage': pacc['stage'], 'lnpi': lnpi}
