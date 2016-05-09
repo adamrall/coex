@@ -314,8 +314,11 @@ def compute_lnpi_tr(pacc, guess=None, min_attempts=1):
     mol, sub, stage = pacc['mol'], pacc['sub'], pacc['stage']
     for m in np.unique(mol):
         for s in np.unique(sub):
-            for g in stage[curr_sub][-1::-1]:
-                sel = (mol == m) & (sub == s)
+            sel = (mol == m) & (sub == s)
+            if len(stage[sel]) == 1:
+                continue
+
+            for g in stage[sel][-2::-1]:
                 curr = sel & (stage == g)
                 next = sel & (stage == g + 1)
                 lnpi[curr] = lnpi[next] + guess[curr] - guess[next]
