@@ -43,9 +43,9 @@ def read_lnpi_tr(path):
         path: The location of the file.
 
     Returns:
-        A dict containing the index, molecule number, stage number,
-        and free energy of each entry in the expanded ensemble growth
-        path.
+        A dict containing the index, subensemble number, molecule
+        number, stage number, and free energy of each entry in the
+        expanded ensemble growth path.
     """
     index, sub, mol, stage, lnpi = np.loadtxt(path, usecols=(0, 1, 2, 3, 4),
                                               unpack=True)
