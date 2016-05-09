@@ -1,22 +1,21 @@
 """Functions for writing various output files."""
 
 
-def write_lnpi_op(path, index, lnpi):
+def write_lnpi_op(path, op):
     """Write the new estimate for the free energy of the order
     parameter path to a file.
 
     Args:
         path: The file to write.
-        index: The list of order parameter values.
-        lnpi: The logarithm of the probability distribution of the
-            order parameter.
+        op: A dict with the order parameter values and order parameter
+        free energy.
     """
     with open(path, 'w') as f:
-        for i, p in zip(index, lnpi):
+        for i, p in zip(op['index'], op['lnpi']):
             print(int(i), p, file=f)
 
 
-def write_lnpi_tr(path, index, sub, mol, stage, lnpi):
+def write_lnpi_tr(path, tr):
     """Write the new estimate for the free energy of the order
     parameter path to a file.
 
@@ -27,14 +26,11 @@ def write_lnpi_tr(path, index, sub, mol, stage, lnpi):
 
     Args:
         path: The file to write.
-        index: A list numbering each entry.
-        sub: The list of subensembles (order parameter values).
-        mol: The list of molecule types.
-        stage: The list of stages.
-        lnpi: The logarithm of the probability distribution of the
-            growth expanded path.
+        tr: A dict with the indices, subensemble numbers, molecule
+            IDs, stage numbers and growth expanded path free
+            energies.
     """
     with open(path, 'w') as f:
-        for i, p in enumerate(lnpi):
-            print(int(index[i]), int(sub[i]), int(mol[i]), int(stage[i]), p,
-                  file=f)
+        for i, p in enumerate(tr['lnpi']):
+            print(int(tr['index'][i]), int(tr['sub'][i]), int(tr['mol'][i]),
+                  int(tr['stage'][i]), p, file=f)
