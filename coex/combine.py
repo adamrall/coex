@@ -154,9 +154,10 @@ def combine_prop(path, runs, file_name):
         hits_file = 'hits_ex.dat'
         cols = (5, )
 
-    hits = [np.loadtxt(os.path.join(path, r, hits_file), usecols=cols)
-            for r in sorted(runs)]
-    index = np.loadtxt(os.path.join(path, runs[0], file_name), usecols=(0, ))
+    hits = [np.loadtxt(os.path.join(path, r, hits_file), dtype='int',
+                       usecols=cols) for r in sorted(runs)]
+    index = np.loadtxt(os.path.join(path, runs[0], file_name), dtype='int',
+                       usecols=(0, ))
     weighted_sums = np.sum([read_properties(r) * hits[i]
                             for i, r in enumerate(sorted(runs))], axis=0)
     hits_sum = sum(hits)
@@ -177,7 +178,7 @@ def combine_pzcnt(path, runs):
         counts for each order parameter value.
     """
     return {'index': np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
-                                usecols=(0, )),
+                                usecols=(0, ), dtype='int'),
             'counts': sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
                                                    usecols=(1, ))
                            for r in runs])}
@@ -212,7 +213,7 @@ def combine_all_pzhists(path, runs):
                          for f in glob.glob(os.path.join(path, runs[0],
                                                          'pzhist_*.dat'))])
     out = {hf: combine_pzhist(hf) for hf in hist_files}
-    out['index'] = index
+    out['index'] = index.astype('int')
     out['z_bins'] = z_bins
 
     return out
