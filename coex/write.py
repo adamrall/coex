@@ -12,7 +12,7 @@ def write_lnpi_op(path, op):
     """
     with open(path, 'w') as f:
         for i, p in zip(op['index'], op['lnpi']):
-            print(int(i), p, file=f)
+            print(i, p, file=f)
 
 
 def write_lnpi_tr(path, tr):
@@ -32,5 +32,5 @@ def write_lnpi_tr(path, tr):
     """
     with open(path, 'w') as f:
         for i, p in enumerate(tr['lnpi']):
-            print(int(tr['index'][i]), int(tr['sub'][i]), int(tr['mol'][i]),
-                  int(tr['stage'][i]), p, file=f)
+            print(tr['index'][i], tr['sub'][i], tr['mol'][i], tr['stage'][i],
+                  p, file=f)

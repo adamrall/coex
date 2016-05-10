@@ -32,7 +32,7 @@ def read_lnpi_op(path):
     """
     index, lnpi = np.loadtxt(path, usecols=(0, 1), unpack=True)
 
-    return {'index': index, 'lnpi': lnpi}
+    return {'index': index.astype('int'), 'lnpi': lnpi}
 
 
 def read_lnpi_tr(path):
@@ -50,7 +50,8 @@ def read_lnpi_tr(path):
     index, sub, mol, stage, lnpi = np.loadtxt(path, usecols=(0, 1, 2, 3, 4),
                                               unpack=True)
 
-    return {'index': index, 'sub': sub, 'mol': mol, 'stage': stage,
+    return {'index': index.astype('int'), 'sub': sub.astype('int'),
+            'mol': mol.astype('int'), 'stage': stage.astype('int'),
             'lnpi': lnpi}
 
 
@@ -69,7 +70,8 @@ def read_pacc_op(path):
     """
     raw = np.loadtxt(path, usecols=(0, 1, 2, 3, 4))
 
-    return {'index': raw[:, 0], 'attempts': raw[:, 1:3], 'prob': raw[:, 3:]}
+    return {'index': raw[:, 0].astype('int'),
+            'attempts': raw[:, 1:3].astype('int'), 'prob': raw[:, 3:]}
 
 
 def read_pacc_tr(path):
@@ -88,8 +90,9 @@ def read_pacc_tr(path):
     """
     raw = np.loadtxt(path, usecols=(0, 1, 2, 3, 4, 5, 6, 7))
 
-    return {'index': raw[:, 0], 'sub': raw[:, 1], 'mol': raw[:, 2],
-            'stage': raw[:, 3], 'attempts': raw[:, 4:6], 'prob': raw[:, 6:]}
+    return {'index': raw[:, 0].astype('int'), 'sub': raw[:, 1].astype('int'),
+            'mol': raw[:, 2].astype('int'), 'stage': raw[:, 3].astype('int'),
+            'attempts': raw[:, 4:6].astype('int'), 'prob': raw[:, 6:]}
 
 
 def read_zz(path):

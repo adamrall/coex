@@ -99,9 +99,10 @@ def combine_hits_op(path, runs):
         hits for each value.
     """
     return {'index': np.loadtxt(os.path.join(path, runs[0], 'hits_op.dat'),
-                                usecols=(0, )),
+                                usecols=(0, ), dtype='int'),
             'hits': sum([np.loadtxt(os.path.join(path, r, 'hits_op.dat'),
-                                    usecols=(1, )) for r in runs])}
+                                    usecols=(1, ), dtype='int')
+                         for r in runs])}
 
 
 def combine_hits_tr(path, runs):
@@ -118,11 +119,12 @@ def combine_hits_tr(path, runs):
     """
     index, sub, mol, stage = np.loadtxt(os.path.join(path, runs[0],
                                                      'hits_tr.dat'),
-                                        usecols=(0, 1, 2, 3))
+                                        usecols=(0, 1, 2, 3), dtype='int')
 
     return {'index': index, 'sub': sub, 'mol': mol, 'stage': stage,
             'hits': sum([np.loadtxt(os.path.join(path, r, 'hits_tr.dat'),
-                                    usecols=(4, )) for r in runs])}
+                                    usecols=(4, ), dtype='int')
+                         for r in runs])}
 
 
 def combine_prop(path, runs, file_name):
