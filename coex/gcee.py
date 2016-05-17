@@ -237,10 +237,10 @@ def read_data(path, is_tee=False):
     lnpi = read_lnpi_op(os.path.join(path, 'lnpi_op.dat'))['lnpi']
     nhists = read_all_molecule_histograms(path)
     if is_tee:
-        bb, zz = read_bz(os.path.join(path, 'bz.dat'))
+        bz = read_bz(os.path.join(path, 'bz.dat'))
 
-        return {'lnpi': lnpi, 'nhists': nhists, 'beta': bb, 'fractions': zz,
-                'path': path}
+        return {'lnpi': lnpi, 'nhists': nhists, 'beta': bz['beta'],
+                'fractions': bz['fractions'], 'path': path}
 
     zz = read_zz(os.path.join(path, 'zz.dat'))
 
