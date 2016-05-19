@@ -29,6 +29,7 @@ def find_poorly_sampled_attempts(attempts, cutoff):
                    for i, a in enumerate(attempts[:-1])])
 
     drop = np.tile(False, len(attempts))
+    drop[-1] = True
     for i, a in enumerate(attempts[:-1]):
         if min(a[1], attempts[i + 1, 0]) < cutoff * avg:
             drop[i] = True
@@ -53,11 +54,11 @@ def smooth_lnpi_op(op, order, drop=None):
         for the free energy of the order parameter path.
     """
     if drop is None:
-        drop = np.tile(False, len(op['lnpi']))
+        drop = np.tile(False, len(op['lnpi']) - 1)
 
-    diff = np.diff(op['lnpi'])
-    y = diff[~drop]
-    p = np.poly1d(np.polyfit(range(len(y)), y, order))
+    x = op['index'][~drop]
+    y = np.diff(op['lnpi'])[~drop]
+    p = np.poly1d(np.polyfit(x, y, order))
 
     return {'index': op['index'],
             'lnpi': np.append(0.0, np.cumsum(p(op['index'][1:])))}
@@ -99,7 +100,7 @@ def smooth_lnpi_tr(tr, order, drop=None):
             curr_stage = curr_mol & (stage == i)
             y = diff[curr_stage & ~drop]
             p = np.poly1d(np.polyfit(range(len(y)), y, order))
-            fit[curr_stage] = p(range(len(curr_stage)))
+            fit[curr_stage] = p(range(len(fit[curr_stage])))
 
         for s in mol_subs:
             curr_sub = (sub == s)
