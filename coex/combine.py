@@ -5,6 +5,7 @@ import os.path
 
 import numpy as np
 
+from coex.read import read_pacc_op, read_pacc_tr
 from coex.states import read_histograms_from_runs
 from coex.states import read_volume_histograms_from_runs
 
@@ -237,6 +238,7 @@ def combine_pacc_op(path, runs):
     out['attempts'] = np.sum([p['attempts'] for p in paccs], axis=0)
     out['prob'] = (np.sum([p['attempts'] * p['prob'] for p in paccs], axis=0) /
                    out['attempts'])
+    out['prob'] = np.nan_to_num(out['prob'])
 
     return out
 
@@ -258,10 +260,11 @@ def combine_pacc_tr(path, runs):
     paccs = [read_pacc_tr(os.path.join(path, r, 'pacc_tr_cr.dat'))
              for r in runs]
     out = {'index': paccs[0]['index'], 'mol': paccs[0]['mol'],
-           'sub': pacccs[0]['sub'], 'stage': paccs[0]['stage']}
+           'sub': paccs[0]['sub'], 'stage': paccs[0]['stage']}
     out['attempts'] = np.sum([p['attempts'] for p in paccs], axis=0)
     out['prob'] = (np.sum([p['attempts'] * p['prob'] for p in paccs], axis=0) /
                    out['attempts'])
+    out['prob'] = np.nan_to_num(out['prob'])
 
     return out
 
