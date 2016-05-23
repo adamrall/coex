@@ -1,7 +1,5 @@
 """Functions for smoothing lnpi_op and lnpi_tr."""
 
-import os.path
-
 import numpy as np
 
 
