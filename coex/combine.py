@@ -197,8 +197,9 @@ def combine_all_pzhists(path, runs):
     """
     index, z_bins = np.loadtxt(os.path.join(path, runs[0], 'pzhist_01_01.dat'),
                                usecols=(0, 1), unpack=True)
-    cnts = [np.loadtxt(os.path.join(path, r, 'pzcnt.dat'), usecols=(1, ))]
-    cnts_sum = susm(cnts)
+    cnts = [np.loadtxt(os.path.join(path, r, 'pzcnt.dat'), usecols=(1, ))
+            for r in runs]
+    cnts_sum = sum(cnts)
     cnts_sum[cnts_sum < 1] = 1.0
 
     def read_pzhist(run, hist_file):
