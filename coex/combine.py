@@ -181,8 +181,7 @@ def combine_pzcnt(path, runs):
     return {'index': np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
                                 usecols=(0, ), dtype='int'),
             'counts': sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
-                                                   usecols=(1, ))
-                           for r in runs])}
+                                      usecols=(1, )) for r in runs])}
 
 
 def combine_all_pzhists(path, runs):
