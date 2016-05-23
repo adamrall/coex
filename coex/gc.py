@@ -8,8 +8,8 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.read import read_order_parameter, read_lnpi_op
-from coex.states import average_histogram, read_all_molecule_histograms
+from coex.read import read_lnpi_op
+from coex.states import read_all_molecule_histograms
 
 
 def get_composition(nhists, weight):
@@ -24,7 +24,10 @@ def get_composition(nhists, weight):
         A (vapor, liquid) tuple of numpy arrays, each containing
         the mole fraction of each species.
     """
-    vapor_n, liquid_n = get_average_n(nhists, weight)
+    if len(nhists) < 3:
+        return np.tile(1.0, len(nhists[0])), np.tile(1.0, len(nhists[0]))
+
+    vapor_n, liquid_n = get_average_n(nhists, np.tile(weight, len(nhists[0])))
 
     return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
 
@@ -63,11 +66,16 @@ def get_average_n(nhists, weights, split=0.5):
         A (vapor, liquid) tuple of numpy arrays, each containing
         the average number of molecules of each species.
     """
-    size = len(nhists[1])
-    bound = split * size
-    vapor = np.array([average_histogram(nh[:bound], np.tile(weights[i], size))
+    bound = int(split * len(nhists[1]))
+
+    def average_phase(hist, weight, phase):
+        split_hist = hist[:bound] if phase == 'vapor' else hist[bound:]
+
+        return [d.average(weight) for d in split_hist]
+
+    vapor = np.array([average_phase(nh, weights[i], 'vapor')
                       for i, nh in enumerate(nhists[1:])])
-    liquid = np.array([average_histogram(nh[bound:], np.tile(weights[i], size))
+    liquid = np.array([average_phase(nh, weights[i], 'liquid')
                        for i, nh in enumerate(nhists[1:])])
 
     return vapor, liquid

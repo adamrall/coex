@@ -9,8 +9,7 @@ from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.read import read_bz, read_lnpi_op, read_zz
-from coex.states import average_histogram, read_all_molecule_histograms
-from coex.states import read_energy_distribution, reweight_distribution
+from coex.states import read_all_molecule_histograms, read_energy_distribution
 
 
 def get_composition(nhists, weights):
@@ -26,6 +25,9 @@ def get_composition(nhists, weights):
         A numpy array with the mole fraction of each species in each
         subensemble.
     """
+    if len(nhists) < 3:
+        return np.tile(1.0, len(nhists[0]))
+
     nm = get_average_n(nhists, weights)
 
     return nm / sum(nm)
@@ -63,9 +65,9 @@ def get_grand_potential(lnpi, nhist, is_vapor=False, is_tee=False):
         iter_range = reversed(iter_range)
 
     for num, i in enumerate(iter_range):
-        states = nhist[i]
-        if states['bins'][0] < 1.0e-8 and states['counts'][0] > 1000:
-            gp[i] = np.log(states['counts'][0] / sum(states['counts']))
+        d = nhist[i]
+        if d.bins[0] < 1.0e-8 and d.counts[0] > 1000:
+            gp[i] = np.log(d.counts[0] / sum(d.counts))
         else:
             if num == 0:
                 gp[i] = -lnpi[i]
@@ -85,8 +87,8 @@ def get_average_n(nhists, weights):
         A numpy array with the number of molecules of each species
         in each subensemble.
     """
-    return np.array([average_histogram(hist, weights[i])
-                     for i, hist in enumerate(nhists[1:])])
+    return np.array([h.average(weights[i])
+                     for i, h in enumerate(nhists[1:])])
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
@@ -190,18 +192,16 @@ def get_two_phase_coexistence(first, second, species=1, x0=0.01):
         coex_act = np.copy(init_act)
 
     def objective(x, j):
-        fst = first['lnpi'][j] + reweight_distribution(first_nhist[j], x)
-        snd = second['lnpi'][j] + reweight_distribution(second_nhist[j], x)
-
-        return np.abs(fst - snd)
+        return np.abs(first['lnpi'][j] + first_nhist[j].reweight(x) -
+                      second['lnpi'][j] - second_nhist[j].reweight(x))
 
     for i in range(len(first['lnpi'])):
         if i == first['index'] or i == second['index']:
             continue
 
         solution = fsolve(objective, x0=x0, args=(i, ))
-        first_lnpi[i] += reweight_distribution(first_nhist[i], solution)
-        second_lnpi[i] += reweight_distribution(second_nhist[i], solution)
+        first_lnpi[i] += first_nhist[i].reweight(solution)
+        second_lnpi[i] += second_nhist[i].reweight(solution)
 
         if species == 0:
             frac[0, i] -= solution
@@ -268,7 +268,7 @@ def shift_to_reference(data, index, fractions, beta=None):
         energy = read_energy_distribution(res['path'], index)
         diff = beta - res['beta'][index]
         res['beta'][index] = beta
-        res['lnpi'][index] += reweight_distribution(energy, diff)
+        res['lnpi'][index] += energy.reweight(diff)
 
     ref_act = fractions_to_activities(fractions, one_subensemble=True)
     act = fractions_to_activities(res['fractions'])
@@ -276,6 +276,6 @@ def shift_to_reference(data, index, fractions, beta=None):
     act[:, index] = ref_act
     res['fractions'] = activities_to_fractions(act)
     for i, nh in enumerate(res['nhists'][1:]):
-        res['lnpi'][index] += reweight_distribution(nh[index], ratios[i])
+        res['lnpi'][index] += nh[index].reweight(ratios[i])
 
     return res

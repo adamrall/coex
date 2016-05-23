@@ -6,36 +6,9 @@ import os.path
 import numpy as np
 
 from coex.read import read_pacc_op, read_pacc_tr
+from coex.states import combine_histograms
 from coex.states import read_histograms_from_runs
 from coex.states import read_volume_histograms_from_runs
-
-
-def combine_histograms(hists):
-    """Combine a set of visited states histograms.
-
-    Args:
-        hists: A list of histograms.
-
-    Returns:
-        A histogram with the combined data.
-    """
-    first_dist = hists[0][0]
-    step = first_dist['bins'][1] - first_dist['bins'][0]
-    subensembles = len(first_dist['bins'])
-
-    def combine_subensemble(i):
-        min_bin = min([h[i]['bins'][0] for h in hists])
-        max_bin = max([h[i]['bins'][-1] for h in hists])
-        num = int((max_bin - min_bin) / step) + 1
-        bins = np.linspace(min_bin, max_bin, num)
-        counts = np.zeros(num)
-        for h in hists:
-            shift = int((h[i]['bins'][0] - min_bin) / step)
-            counts[shift:] = h[i]['counts']
-
-        return {'bins': bins, 'counts': counts}
-
-    return [combine_subensemble(i) for i in range(subensembles)]
 
 
 def combine_ehist(path, runs):
