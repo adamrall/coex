@@ -65,7 +65,7 @@ def combine_all_nhists(path, runs):
         species.
     """
     hist_files = [os.path.basename(f)
-                  for f in glob.glob(os.path.join(runs[0],'nhist_*.dat'))]
+                  for f in glob.glob(os.path.join(runs[0], 'nhist_*.dat'))]
 
     return [combine_histograms(read_histograms_from_runs(path, runs, hf))
             for hf in hist_files]
