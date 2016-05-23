@@ -71,19 +71,19 @@ def combine_all_nhists(path, runs):
             for hf in hist_files]
 
 
-def combine_vhist(path, runs, uses_log_volume=False):
+def combine_vhist(path, runs, use_log_volume=False):
     """Combine a set of energy visited states histograms.
 
     Args:
         path: The base path containing the data to combine.
         runs: The list of runs to combine.
-        uses_log_volume: A bool denoting whether the bins in the
+        use_log_volume: A bool denoting whether the bins in the
             histogram use V or ln(V).
 
     Returns:
         A combined volume histogram.
     """
-    hists = read_volume_histograms_from_runs(path, runs, uses_log_volume)
+    hists = read_volume_histograms_from_runs(path, runs, use_log_volume)
 
     return combine_histograms(hists)
 
