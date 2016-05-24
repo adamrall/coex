@@ -89,7 +89,7 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
             index, forward_attempts, reverse_attempts, forward_probabilities,
             reverse_probabilities)
 
-    def compute_distribution(self):
+    def calculate_distribution(self):
         return GrowthExpandedDistribution.from_transition_matrix(self)
 
     @classmethod
@@ -148,7 +148,7 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
             index, forward_attempts, reverse_attempts, forward_probabilities,
             reverse_probabilities)
 
-    def compute_distribution(self):
+    def calculate_distribution(self):
         return OrderParameterDistribution.from_transition_matrix(self)
 
     @classmethod
