@@ -22,6 +22,8 @@ import numpy as np
 
 
 class TransitionMatrix(object):
+    matrix_file = None
+
     def __init__(self, index, forward_attempts, reverse_attempts,
                  forward_probabilities, reverse_probabilities):
         self.index = index
@@ -32,6 +34,39 @@ class TransitionMatrix(object):
 
     def __len__(self):
         return len(self.forward_attempts)
+
+    @classmethod
+    def from_combination(cls, matrices):
+        index = matrices[0].index
+        fw_att = sum([m.forward_attempts for m in matrices])
+        rev_att = sum([m.reverse_attempts for m in matrices])
+        fw_prob = sum([m.forward_attempts * m.forward_probabilities
+                       for m in matrices]) / fw_att
+        rev_prob = sum([m.reverse_attempts * m.reverse_probabilities
+                        for m in matrices]) / rev_att
+
+        return cls(
+            index=index, forward_attempts=fw_att, reverse_attempts=rev_att,
+            forward_probabilites=fw_prob, reverse_probabilities=rev_prob)
+
+    @classmethod
+    def from_combined_runs(cls, path, runs):
+        """Combine a set of transition matrix files.
+
+        Args:
+            path: The base path containing the data to combine.
+            runs: The list of runs to combine.
+
+        Returns:
+            A TransitionMatrix object with the combined data.
+        """
+        return cls.from_combination(
+            [cls.from_file(os.path.join(path, r, cls.matrix_file))
+             for r in runs])
+
+    @classmethod
+    def from_file(cls, path):
+        raise NotImplementedError
 
     def get_poorly_sampled_attempts(self, cutoff):
         """Determine which subensemble/molecule/growth stage
@@ -51,27 +86,16 @@ class TransitionMatrix(object):
             A boolean numpy array, where True denotes indices which
             don't meet the sampling quality threshold.
         """
-        fw_att, rev_att = self.forward_attempts, self.reverse_attempts
-        avg = np.mean([min(a, rev_att[i + 1]) for i, a in enumerate(fw_att)])
+        fw, rev = self.forward_attempts, self.reverse_attempts
+        avg = np.mean([min(a, rev[i + 1]) for i, a in enumerate(fw)])
 
-        drop = np.tile(False, len(fw_att))
+        drop = np.tile(False, len(fw))
         drop[-1] = True
-        for i, a in enumerate(fw_att[:-1]):
-            if min(a, rev_att[i + 1]) < cutoff * avg:
+        for i, a in enumerate(fw[:-1]):
+            if min(a, rev[i + 1]) < cutoff * avg:
                 drop[i] = True
 
         return drop
-
-
-def _combine_transition_matrices(matrices):
-    fw_att = sum([m.forward_attempts for m in matrices])
-    rev_att = sum([m.reverse_attempts for m in matrices])
-    fw_prob = sum([m.forward_attempts * m.forward_probabilities
-                   for m in matrices]) / fw_att
-    rev_prob = sum([m.reverse_attempts * m.reverse_probabilities
-                    for m in matrices]) / rev_att
-
-    return fw_att, rev_att, fw_prob, rev_prob
 
 
 def _read_growth_expanded_index(path):
@@ -83,39 +107,53 @@ def _read_growth_expanded_index(path):
 
 
 class GrowthExpandedTransitionMatrix(TransitionMatrix):
+    matrix_file = 'pacc_tr_cr.dat'
+
     def __init__(self, index, forward_attempts, reverse_attempts,
                  forward_probabilities, reverse_probabilities):
         super(GrowthExpandedTransitionMatrix, self).__init__(
             index, forward_attempts, reverse_attempts, forward_probabilities,
             reverse_probabilities)
 
-    def calculate_distribution(self):
-        return GrowthExpandedDistribution.from_transition_matrix(self)
-
-    @classmethod
-    def from_combined_runs(cls, path, runs, matrix_file='pacc_tr_cr.dat'):
-        """Combine a set of growth expanded ensemble transition matrix
-        files.
+    def calculate_distribution(self, guess=None, min_attempts=1):
+        """Compute the logarithm of the growth expanded ensemble
+        probability distribution using the transition matrix.
 
         Args:
-            path: The base path containing the data to combine.
-            runs: The list of runs to combine.
+            guess: An initial guess for the logarithm of the
+                probability distribution.
+            min_attempts: The threshold for considering a transition
+                adequately sampled.
 
         Returns:
-            A GrowthExpandedTransitionMatrix object with the combined
-            data.
+            A GrowthExpandedDistribution object with the computed
+            logarithm of the probability distribution
         """
-        matrices = [cls.from_file(os.path.join(path, r, matrix_file))
-                    for r in runs]
-        index = _read_growth_expanded_index(os.path.join(path, runs[0],
-                                                         matrix_file))
-        fw_att, rev_att, fw_prob, rev_prob = _combine_transition_matrices(
-            matrices)
-        fw_prob, rev_prob = np.nan_to_num(fw_prob), np.nan_to_num(rev_prob)
+        dist = np.zeros(len(self))
+        if guess is None:
+            guess = np.copy(dist)
 
-        return cls(
-            index, forward_attempts=fw_att, reverse_attempts=rev_att,
-            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
+        fw_att, rev_att = self.forward_attempts, self.reverse_attempts
+        fw_prob = self.forward_probabilities
+        rev_prob = self.reverse_probabilities
+        ind = self.index
+        mol, sub, stages = ind['molecules'], ind['subensembles'], ind['stages']
+        for m in np.unique(mol):
+            for s in np.unique(sub):
+                sel = (mol == m) & (sub == s)
+                if len(stages[sel]) == 1:
+                    continue
+
+                for g in stages[sel][-2::-1]:
+                    cs = sel & (stages == g)
+                    ns = sel & (stages == g + 1)
+                    dist[cs] = dist[ns] + guess[cs] - guess[ns]
+                    if (fw_att[cs] > min_attempts and
+                            rev_att[ns] > min_attempts and
+                            fw_prob[cs] > 0.0 and rev_prob[ns] > 0.0):
+                        dist[cs] -= np.log(fw_prob[cs] / rev_prob[ns])
+
+        return GrowthExpandedDistribution(index=ind, log_probabilities=dist)
 
     @classmethod
     def from_file(cls, path):
@@ -138,7 +176,13 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
             forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
 
     def write(self, path):
-        raise NotImplementedError
+        ind = self.index
+        fmt = 6 * ['%.8d'] + 2 * ['%10.5g']
+        arr = np.append(ind['number'], ind['subensembles'], ind['molecules'],
+                        ind['stages'], self.forward_attempts,
+                        self.reverse_attempts, self.forward_probabilities,
+                        self.reverse_probabilities)
+        np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
 class OrderParameterTransitionMatrix(TransitionMatrix):
@@ -148,31 +192,35 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
             index, forward_attempts, reverse_attempts, forward_probabilities,
             reverse_probabilities)
 
-    def calculate_distribution(self):
-        return OrderParameterDistribution.from_transition_matrix(self)
-
-    @classmethod
-    def from_combined_runs(cls, path, runs, matrix_file='pacc_op_cr.dat'):
-        """Combine a set of order parameter transition matrix files.
+    def calculate_distribution(self, guess=None, min_attempts=1):
+        """Compute the logarithm of the order parameter probability
+        distribution, i.e., the negative of the free energy, using the
+        transition matrix.
 
         Args:
-            path: The base path containing the data to combine.
-            runs: The list of runs to combine.
+            matrix: A TransitionMatrix object.
+            guess: An initial guess for the log of the probabilities.
+            min_attempts: The threshold for considering a transition
+                adequately sampled.
 
         Returns:
-            An OrderParameterTransitionMatrix object with the combined
-            data.
+            An OrderParameterDistribution object.
         """
-        matrices = [cls.from_file(os.path.join(path, r, matrix_file))
-                    for r in runs]
-        index = np.loadtxt(os.path.join(path, runs[0], matrix_file),
-                           usecols=(0, ))
-        fw_att, rev_att, fw_prob, rev_prob = _combine_transition_matrices(
-            matrices)
+        dist = np.zeros(len(self))
+        if guess is None:
+            guess = np.copy(dist)
 
-        return cls(
-            index, forward_attempts=fw_att, reverse_attempts=rev_att,
-            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
+            for i, dc in enumerate(np.diff(guess)):
+                dist[i + 1] = dist[i] + dc
+                fw_prob = self.forward_probabilities[i]
+                rev_prob = self.reverse_probabilities[i + 1]
+                if (self.forward_attempts[i] > min_attempts and
+                        self.reverse_attempts[i + 1] > min_attempts and
+                        fw_prob > 0.0 and rev_prob > 0.0):
+                    dist[i + 1] += np.log(fw_prob / rev_prob)
+
+        return OrderParameterDistribution(index=self.index,
+                                          log_probabilities=dist)
 
     @classmethod
     def from_file(cls, path):
@@ -194,21 +242,23 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
             forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
 
     def write(self, path):
-        raise NotImplementedError
+        fmt = 3 * ['%.8d'] + 2 * ['%10.5g']
+        arr = np.append(
+            self.index, self.forward_attempts, self.reverse_attempts,
+            self.forward_probabilities, self.reverse_probabilities)
+        np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
-def _write_growth_expanded_distribution(path, index, properties):
-    with open(path, 'w') as f:
-        for i, sub, mol, stg, p in zip(
-                index['numbers'], index['subensembles'], index['molecules'],
-                index['stages'], properties):
-            print(i, sub, mol, stg, p, file=f)
+def _write_growth_expanded_distribution(path, index, probabilities):
+    fmt = 4 * ['%.8d'] + ['%10.5g']
+    arr = np.append(index['numbers'], index['subensembles'],
+                    index['molecules'], index['stages'], probabilities)
+    np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
-def _write_order_parameter_distribution(path, index, properties):
-    with open(path, 'w') as f:
-        for i, p in zip(index, properties):
-            print(i, p, file=f)
+def _write_order_parameter_distribution(path, index, probabilities):
+    np.savetxt(path, np.transpose(np.append(index, probabilities)),
+               fmt=['%.8d', '%10.5g'], delimiter='  ')
 
 
 class Distribution(object):
@@ -247,48 +297,6 @@ class GrowthExpandedDistribution(Distribution):
         logp = np.loadtxt(path, usecols=(4, ))
 
         return cls(index=index, log_probabilities=logp)
-
-    @classmethod
-    def from_transition_matrix(cls, matrix, guess=None, min_attempts=1):
-        """Compute the logarithm of the growth expanded ensemble
-        probability distribution using the transition matrix.
-
-        Args:
-            matrix: A TransitionMatrix object.
-            guess: An initial guess for the logarithm of the
-                probability distribution.
-            min_attempts: The threshold for considering a transition
-                adequately sampled.
-
-        Returns:
-            A GrowthExpandedDistribution object with the computed
-            logarithm of the probability distribution
-        """
-        dist = np.zeros(len(matrix.index))
-        if guess is None:
-            guess = np.copy(dist)
-
-        fw_att, rev_att = matrix.forward_attempts, matrix.reverse_attempts
-        fw_prob = matrix.forward_probabilities
-        rev_prob = matrix.reverse_probabilities
-        mi = matrix.index
-        mol, sub, stages = mi['molecules'], mi['subensembles'], mi['stages']
-        for m in np.unique(mol):
-            for s in np.unique(sub):
-                sel = (mol == m) & (sub == s)
-                if len(stages[sel]) == 1:
-                    continue
-
-                for g in stages[sel][-2::-1]:
-                    cs = sel & (stages == g)
-                    ns = sel & (stages == g + 1)
-                    dist[cs] = dist[ns] + guess[cs] - guess[ns]
-                    if (fw_att[cs] > min_attempts and
-                            rev_att[ns] > min_attempts and
-                            fw_prob[cs] > 0.0 and rev_prob[ns] > 0.0):
-                        dist[cs] -= np.log(fw_prob[cs] / rev_prob[ns])
-
-        return cls(index=mi, log_probabilities=dist)
 
     def smooth(self, order, drop=None):
         """Perform curve fitting on the growth expanded ensemble free
@@ -372,36 +380,6 @@ class OrderParameterDistribution(Distribution):
         return cls(index=index.astype('int'),
                    log_probabilities=log_probabilities)
 
-    @classmethod
-    def from_transition_matrix(cls, matrix, guess=None, min_attempts=1):
-        """Compute the logarithm of the order parameter probability
-        distribution, i.e., the negative of the free energy, using the
-        transition matrix.
-
-        Args:
-            matrix: A TransitionMatrix object.
-            guess: An initial guess for the log of the probabilities.
-            min_attempts: The threshold for considering a transition
-                adequately sampled.
-
-        Returns:
-            An OrderParameterDistribution object.
-        """
-        dist = np.zeros(len(matrix))
-        if guess is None:
-            guess = np.copy(dist)
-
-            for i, dc in enumerate(np.diff(guess)):
-                dist[i + 1] = dist[i] + dc
-                fw_prob = matrix.forward_probabilities[i]
-                rev_prob = matrix.reverse_probabilities[i + 1]
-                if (matrix.forward_attempts[i] > min_attempts and
-                        matrix.reverse_attempts[i + 1] > min_attempts and
-                        fw_prob > 0.0 and rev_prob > 0.0):
-                    dist[i + 1] += np.log(fw_prob / rev_prob)
-
-        return cls(index=matrix.index, log_probabilities=dist)
-
     def smooth(self, order, drop=None):
         """Perform curve fitting on the free energy differences to
         produce a new estimate of the free energy.
@@ -437,30 +415,47 @@ class OrderParameterDistribution(Distribution):
                                             self.log_probabilities)
 
 
-class GrowthExpandedSamples(object):
+class FrequencyDistribution(object):
+    sample_file = None
+
     def __init__(self, index, samples):
         self.index = index
         self.samples = samples
 
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, i):
+        return self.samples[i]
+
+    def __iter__(self):
+        for s in self.samples:
+            yield s
+
     @classmethod
-    def from_combined_runs(cls, path, runs):
-        """Combine a set of growth expanded ensemble sample count
-        (hits_tr.dat) files.
-
-        Args:
-            path: The base path containing the data to combine.
-            runs: The list of runs to combine.
-
-        Returns:
-            A GrowthExpandedSamples object with the combined data.
-        """
-        sample_file = 'hits_tr.dat'
-        index = _read_growth_expanded_index(os.path.join(path, runs[0],
-                                                         sample_file))
-        samples = sum([np.loadtxt(os.path.join(path, r, sample_file),
-                                  usecols=(4, ), dtype='int') for r in runs])
+    def from_combination(cls, distributions):
+        index = distributions[0].index
+        samples = sum([d.samples for d in distributions])
 
         return cls(index=index, samples=samples)
+
+    @classmethod
+    def from_combined_runs(cls, path, runs):
+        return cls.from_combination(
+            [cls.from_file(os.path.join(path, r, cls.sample_file))
+             for r in runs])
+
+    @classmethod
+    def from_file(cls, path):
+        raise NotImplementedError
+
+
+class GrowthExpandedFrequencyDistribution(FrequencyDistribution):
+    sample_file = 'hits_tr.dat'
+
+    def __init__(self, index, samples):
+        super(GrowthExpandedFrequencyDistribution, self).__init__(index,
+                                                                  samples)
 
     @classmethod
     def from_file(cls, path):
@@ -473,30 +468,12 @@ class GrowthExpandedSamples(object):
         _write_growth_expanded_distribution(path, self.index, self.samples)
 
 
-class OrderParameterSamples(object):
+class OrderParameterFrequencyDistribution(FrequencyDistribution):
+    sample_file = 'hits_op.dat'
+
     def __init__(self, index, samples):
-        self.index = index
-        self.samples = samples
-
-    @classmethod
-    def from_combined_runs(cls, path, runs):
-        """Combine a set of order parameter sample count (hits_op.dat)
-        files.
-
-        Args:
-            path: The base path containing the data to combine.
-            runs: The list of runs to combine.
-
-        Returns:
-            An OrderParameterSamples object with the combined data.
-        """
-        sample_file = 'hits_op.dat'
-        index = np.loadtxt(os.path.join(path, runs[0], sample_file),
-                           usecols=(0, ), dtype='int'),
-        samples = sum([np.loadtxt(os.path.join(path, r, sample_file),
-                                  usecols=(1, ), dtype='int') for r in runs])
-
-        return cls(index=index, samples=samples)
+        super(OrderParameterFrequencyDistribution, self).__init__(index,
+                                                                  samples)
 
     @classmethod
     def from_file(cls, path):
@@ -509,35 +486,77 @@ class OrderParameterSamples(object):
         _write_order_parameter_distribution(path, self.index, self.samples)
 
 
-def _read_properties(path):
-    base = os.path.basename(path)
-    if 'op' in base:
-        return np.transpose(np.loadtxt(path))[1:]
-    elif 'tr' in base:
-        return np.transpose(np.loadtxt(path))[4:]
-    else:
+class PropertyList(object):
+    freq_class = None
+    prop_file = None
+
+    def __init__(self, index, properties):
+        self.index = index
+        self.properties = properties
+
+    @classmethod
+    def from_combination(cls, lists, frequencies):
+        weighted_sums = np.sum([lst * freq.samples
+                                for lst, freq in zip(lists, frequencies)],
+                               axis=0)
+        freq_sum = sum([f.samples for f in frequencies])
+        freq_sum[freq_sum < 1] = 1.0
+
+        return cls(index=lists[0].index, properties=weighted_sums / freq_sum)
+
+    @classmethod
+    def from_combined_runs(cls, path, runs):
+        fd = cls.freq_class
+        lists = [cls.from_file(os.path.join(path, r, cls.prop_file))
+                 for r in runs]
+        frequencies = [fd.from_file(os.path.join(path, r, fd.sample_file))
+                       for r in runs]
+
+        return cls.from_combination(lists, frequencies)
+
+    @classmethod
+    def from_file(cls, path):
         raise NotImplementedError
 
 
-def _combine_properties(path, runs, sample_file):
-    sample_class = OrderParameterSamples
-    if 'tr' in sample_file:
-        sample_class = GrowthExpandedSamples
+class OrderParameterPropertyList(PropertyList):
+    freq_class = OrderParameterFrequencyDistribution
+    prop_file = 'prop_op.dat'
 
-    run_samples = [sample_class.from_file(os.path.join(path, r, sample_file))
-                   for r in runs]
-    weighted_sums = np.sum([_read_properties(r) *
-                            run_samples[i].samples
-                            for i, r in enumerate(sorted(runs))], axis=0)
-    samples_sum = sum([s.samples for s in run_samples])
-    samples_sum[samples_sum < 1] = 1.0
+    def __init__(self, index, properties):
+        super(OrderParameterPropertyList, self).__init__(index, properties)
+        self.index = index
+        self.samples = properties
 
-    return np.transpose(weighted_sums / samples_sum)
+    @classmethod
+    def from_file(cls, path):
+        raw = np.transpose(np.loadtxt(path))
+
+        return cls(index=raw[0].astype('int'), properties=raw[1:])
+
+    def write(self, path):
+        fmt = ['%.8d'] + len(self.properties) * ['%10.5g']
+        np.savetxt(path, np.transpose(np.append(self.index, self.properties)),
+                   fmt=fmt, delimiter='  ')
 
 
-def combine_growth_expanded_properties(path, runs):
+class GrowthExpandedPropertyList(PropertyList):
+    freq_class = GrowthExpandedFrequencyDistribution
     prop_file = 'prop_tr.dat'
-    index = _read_growth_expanded_index(os.path.join(path, runs[0],
-                                                     prop_file))
-    prop = _combine_properties(path, runs, sample_file='hits_tr.dat')
-    pass
+
+    def __init__(self, index, properties):
+        super(GrowthExpandedPropertyList, self).__init__(index, properties)
+        self.index = index
+        self.samples = properties
+
+    @classmethod
+    def from_file(cls, path):
+        return cls(index=_read_growth_expanded_index(path),
+                   properties=np.transpose(np.loadtxt(path))[4:])
+
+    def write(self, path):
+        ind = self.index
+        fmt = 4 * ['%.8d'] + len(self.properties) * ['%10.5g']
+        arr = np.append(ind['number'], ind['subensembles'], ind['molecules'],
+                        ind['stages'], self.properties)
+        np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
