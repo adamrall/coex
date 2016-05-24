@@ -130,6 +130,36 @@ class VisitedStatesHistogram(object):
         return np.array([d.average(weights[i]) for i, d in self])
 
     @classmethod
+    def from_combined_runs(cls, path, runs, hist_file):
+        """Combine a set of visited states histograms.
+
+        Args:
+            hists: A list of histograms.
+
+        Returns:
+            A histogram with the combined data.
+        """
+        hists = [cls.from_file(os.path.join(path, r, hist_file)) for r in runs]
+        first_dist = hists[0][0]
+        step = first_dist.bins[1] - first_dist.bins[0]
+        subensembles = len(first_dist)
+
+        def combine_subensemble(i):
+            min_bin = min([h[i].bins[0] for h in hists])
+            max_bin = max([h[i].bins[-1] for h in hists])
+            num = int((max_bin - min_bin) / step) + 1
+            bins = np.linspace(min_bin, max_bin, num,
+                               dtype=hists[0][i].bins.dtype)
+            counts = np.zeros(num, dtype=hists[0][i].counts.dtype)
+            for h in hists:
+                shift = int((h[i].bins[0] - min_bin) / step)
+                counts[shift:(shift + len(h[i]))] += h[i].counts
+
+            return VisitedStatesDistribution(bins=bins, counts=counts)
+
+        return cls([combine_subensemble(i) for i in range(subensembles)])
+
+    @classmethod
     def from_file(cls, path):
         """Read a visited states histogram from a pair of files.
 
@@ -204,81 +234,6 @@ def read_all_molecule_histograms(path):
     return [VisitedStatesHistogram.from_file(f) for f in hist_files]
 
 
-class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
-    def __init__(self, distributions, use_log_volume=False):
-        self.use_log_volume = use_log_volume
-        super(VolumeVisitedStatesHistogram, self).__init__(distributions)
-        for d in self:
-            if use_log_volume:
-                d.bins = np.exp(d.bins)
-
-            d.bins *= cubic_meters
-
-    @classmethod
-    def from_file(cls, path, use_log_volume=False):
-        hist = super(VisitedStatesHistogram, cls).from_file(path)
-        hist.use_log_volume = use_log_volume
-
-        return hist
-
-    def write(self, path):
-        units_copy = copy.copy(self)
-        for d in units_copy:
-            if units_copy.use_log_volume:
-                d.bins = np.log(d.bins)
-
-            d.bins /= cubic_meters
-
-        super(VisitedStatesHistogram, units_copy).write(path)
-
-
-def combine_histograms(hists):
-    """Combine a set of visited states histograms.
-
-    Args:
-        hists: A list of histograms.
-
-    Returns:
-        A histogram with the combined data.
-    """
-    first_dist = hists[0][0]
-    step = first_dist.bins[1] - first_dist.bins[0]
-    subensembles = len(first_dist)
-
-    def combine_subensemble(i):
-        min_bin = min([h[i].bins[0] for h in hists])
-        max_bin = max([h[i].bins[-1] for h in hists])
-        num = int((max_bin - min_bin) / step) + 1
-        bins = np.linspace(min_bin, max_bin, num, dtype=hists[0][i].bins.dtype)
-        counts = np.zeros(num, dtype=hists[0][i].counts.dtype)
-        for h in hists:
-            shift = int((h[i].bins[0] - min_bin) / step)
-            counts[shift:(shift + len(h[i]))] += h[i].counts
-
-        return VisitedStatesDistribution(bins=bins, counts=counts)
-
-    distributions = [combine_subensemble(i) for i in range(subensembles)]
-    if isinstance(hists[0], VolumeVisitedStatesHistogram):
-        return VolumeVisitedStatesHistogram(distributions,
-                                            hists[0].use_log_volume)
-
-    return VisitedStatesHistogram(distributions)
-
-
-def combine_energy_histograms(path, runs):
-    """Combine a set of energy visited states histograms.
-
-    Args:
-        path: The base path containing the data to combine.
-        runs: The list of runs to combine.
-
-    Returns:
-        A combined energy histogram.
-    """
-    return combine_histograms([VisitedStatesHistogram.from_file(
-        os.path.join(path, r, 'ehist.dat')) for r in runs])
-
-
 def combine_all_molecule_histograms(path, runs):
     """Combine all molecule number visited states histograms from a
     set of runs.
@@ -294,24 +249,38 @@ def combine_all_molecule_histograms(path, runs):
     hist_files = [os.path.basename(f)
                   for f in glob.glob(os.path.join(runs[0], 'nhist_*.dat'))]
 
-    def read_hists(hist_file):
-        return [VisitedStatesHistogram.from_file(
-            os.path.join(path, r, hist_file)) for r in runs]
-
-    return [combine_histograms(read_hists(hf)) for hf in hist_files]
+    return [VisitedStatesHistogram.from_combined_runs(path, runs, hf)
+            for hf in hist_files]
 
 
-def combine_volume_histograms(path, runs, use_log_volume=False):
-    """Combine a set of energy visited states histograms.
+class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
+    def __init__(self, distributions, use_log_volume=False):
+        self.use_log_volume = use_log_volume
+        super(VolumeVisitedStatesHistogram, self).__init__(distributions)
+        for d in self:
+            if use_log_volume:
+                d.bins = np.exp(d.bins)
 
-    Args:
-        path: The base path containing the data to combine.
-        runs: The list of runs to combine.
-        use_log_volume: A bool denoting whether the bins in the
-            histogram use V or ln(V).
+            d.bins *= cubic_meters
 
-    Returns:
-        A combined volume histogram.
-    """
-    return combine_histograms([VolumeVisitedStatesHistogram.from_file(
-        os.path.join(path, r, 'vhist.dat'), use_log_volume) for r in runs])
+    @classmethod
+    def from_combined_runs(cls, path, runs, use_log_volume=False):
+        combined = VisitedStatesHistogram.from_combined_runs(path, runs,
+                                                             'vhist.dat')
+
+        return cls(combined.distributions, use_log_volume)
+
+    @classmethod
+    def from_file(cls, path, use_log_volume=False):
+        return cls(VisitedStatesHistogram.from_file(path).distributions,
+                   use_log_volume)
+
+    def write(self, path):
+        units_copy = copy.copy(self)
+        for d in units_copy:
+            if units_copy.use_log_volume:
+                d.bins = np.log(d.bins)
+
+            d.bins /= cubic_meters
+
+        super(VisitedStatesHistogram, units_copy).write(path)
