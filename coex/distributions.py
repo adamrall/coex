@@ -44,10 +44,11 @@ class TransitionMatrix(object):
                        for m in matrices]) / fw_att
         rev_prob = sum([m.reverse_attempts * m.reverse_probabilities
                         for m in matrices]) / rev_att
+        fw_prob, rev_prob = np.nan_to_num(fw_prob), np.nan_to_num(rev_prob)
 
         return cls(
             index=index, forward_attempts=fw_att, reverse_attempts=rev_att,
-            forward_probabilites=fw_prob, reverse_probabilities=rev_prob)
+            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
 
     @classmethod
     def from_combined_runs(cls, path, runs):
@@ -87,7 +88,7 @@ class TransitionMatrix(object):
             don't meet the sampling quality threshold.
         """
         fw, rev = self.forward_attempts, self.reverse_attempts
-        avg = np.mean([min(a, rev[i + 1]) for i, a in enumerate(fw)])
+        avg = np.mean([min(a, rev[i + 1]) for i, a in enumerate(fw[:-1])])
 
         drop = np.tile(False, len(fw))
         drop[-1] = True
@@ -186,9 +187,11 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
 
 
 class OrderParameterTransitionMatrix(TransitionMatrix):
+    matrix_file = 'pacc_op_cr.dat'
+
     def __init__(self, index, forward_attempts, reverse_attempts,
                  forward_probabilities, reverse_probabilities):
-        super(GrowthExpandedTransitionMatrix, self).__init__(
+        super(OrderParameterTransitionMatrix, self).__init__(
             index, forward_attempts, reverse_attempts, forward_probabilities,
             reverse_probabilities)
 
@@ -210,14 +213,14 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
         if guess is None:
             guess = np.copy(dist)
 
-            for i, dc in enumerate(np.diff(guess)):
-                dist[i + 1] = dist[i] + dc
-                fw_prob = self.forward_probabilities[i]
-                rev_prob = self.reverse_probabilities[i + 1]
-                if (self.forward_attempts[i] > min_attempts and
-                        self.reverse_attempts[i + 1] > min_attempts and
-                        fw_prob > 0.0 and rev_prob > 0.0):
-                    dist[i + 1] += np.log(fw_prob / rev_prob)
+        for i, dc in enumerate(np.diff(guess)):
+            dist[i + 1] = dist[i] + dc
+            fw_prob = self.forward_probabilities[i]
+            rev_prob = self.reverse_probabilities[i + 1]
+            if (self.forward_attempts[i] > min_attempts and
+                    self.reverse_attempts[i + 1] > min_attempts and
+                    fw_prob > 0.0 and rev_prob > 0.0):
+                dist[i + 1] += np.log(fw_prob / rev_prob)
 
         return OrderParameterDistribution(index=self.index,
                                           log_probabilities=dist)
@@ -315,7 +318,8 @@ class GrowthExpandedDistribution(Distribution):
             in the expanded ensemble growth path.
         """
         size = len(self)
-        mol, sub, stage = self.molecules, self.subensembles, self.stages
+        ind = self.index
+        mol, sub, stage = ind['molecules'], ind['subensembles'], ind['stages']
         diff, fit = np.zeros(size), np.zeros(size)
         dist = np.zeros(size)
         if drop is None:
@@ -399,7 +403,7 @@ class OrderParameterDistribution(Distribution):
 
         x = self.index[~drop]
         y = np.diff(self[~drop])
-        p = np.poly1d(np.polyfit(x, y, order))
+        p = np.poly1d(np.polyfit(x[:-1], y, order))
         smoothed = np.append(0.0, np.cumsum(p(self.index[1:])))
 
         return OrderParameterDistribution(index=self.index,
