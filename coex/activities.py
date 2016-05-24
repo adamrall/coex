@@ -20,7 +20,10 @@ def activities_to_fractions(activities, one_subensemble=False):
     See Also:
         fractions_to_activities() for the opposite conversion.
     """
-    if ((not one_subensemble and len(activities.shape) == 1) or
+    if isinstance(activities, list):
+        activities = np.array(activities)
+
+     if ((not one_subensemble and len(activities.shape) == 1) or
             (one_subensemble and len(activities) == 1)):
         return np.log(activities)
 
@@ -47,7 +50,10 @@ def fractions_to_activities(fractions, one_subensemble=False):
     See Also:
         activities_to_fractions() for the opposite conversion.
     """
-    if ((not one_subensemble and len(fractions.shape) == 1) or
+    if isinstance(fractions, list):
+        fractions = np.array(fractions)
+
+     if ((not one_subensemble and len(fractions.shape) == 1) or
             (one_subensemble and len(fractions) == 1)):
         return np.exp(fractions)
 
