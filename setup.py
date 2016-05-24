@@ -23,7 +23,7 @@ from setuptools import setup
 
 setup(
     name='coex',
-    version='0.1',
+    version='1.0',
     packages=['coex'],
     install_requires=['numpy', 'scipy'],
     author='Adam Rall',
