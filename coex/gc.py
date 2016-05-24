@@ -7,8 +7,7 @@ import os.path
 import numpy as np
 from scipy.optimize import fsolve
 
-from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.read import read_lnpi_op
+from coex.activities import activities_to_fractions, fractions_to_activities
 from coex.states import read_all_molecule_histograms
 
 

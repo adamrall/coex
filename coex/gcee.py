@@ -7,9 +7,9 @@ import os.path
 import numpy as np
 from scipy.optimize import fsolve
 
-from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.read import read_bz, read_lnpi_op, read_zz
-from coex.states import read_all_molecule_histograms, read_energy_distribution
+from coex.activities import activities_to_fractions, fractions_to_activities
+from coex.activities import read_bz, read_zz
+from coex.states import read_all_molecule_histograms, VisitedStatesDistribution
 
 
 def get_composition(nhists, weights):
@@ -265,7 +265,8 @@ def shift_to_reference(data, index, fractions, beta=None):
     res = data.copy()
     res['index'] = index
     if beta is not None:
-        energy = read_energy_distribution(res['path'], index)
+        energy = VisitedStatesDistribution.from_file(
+            os.path.join(res['path'], 'ehist.dat'), index)
         diff = beta - res['beta'][index]
         res['beta'][index] = beta
         res['lnpi'][index] += energy.reweight(diff)
