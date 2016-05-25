@@ -2,151 +2,141 @@
 simulations.
 """
 
+import copy
 import os.path
 
 import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activities import activities_to_fractions, fractions_to_activities
+from coex.distributions import OrderParameterDistribution
 from coex.states import read_all_molecule_histograms
 
 
-def get_composition(nhists, weight):
-    """Calculate the average composition of each phase.
+class Simulation(object):
+    def __init__(self, distribution, molecule_histograms, activity_fractions,
+                 weights=None):
+        self.distribution = distribution
+        self.molecule_histograms = molecule_histograms
+        self.activities = fractions_to_activities(activity_fractions,
+                                                  one_subensemble=True)
+        self.weights = weights
+        if weights is None:
+            self.weights = np.tile(None, len(molecule_histograms) - 1)
 
-    Args:
-        nhists: The molecule number visited states histograms.
-        weight: The logarithm of the initial order parameter activity
-            minus the logarithm of the coexistence activity.
+    @classmethod
+    def from_directory(cls, path, activity_fractions):
+        """Read the relevant data from a simulation directory.
 
-    Returns:
-        A (vapor, liquid) tuple of numpy arrays, each containing
-        the mole fraction of each species.
-    """
-    if len(nhists) < 3:
-        return np.tile(1.0, len(nhists[0])), np.tile(1.0, len(nhists[0]))
+        Args:
+            path: The directory containing the data.
+            activity_fractions: The activity fractions (chi, eta_j) of
+                the simulation.
 
-    vapor_n, liquid_n = get_average_n(nhists, np.tile(weight, len(nhists[0])))
+        Returns:
+            A dict with the order parameter, logarithm of the
+            probability distribution, and molecule number visited states
+            histograms.
+        """
+        dist = OrderParameterDistribution.from_file(
+            os.path.join(path, 'lnpi_op.dat'))
+        nhists = read_all_molecule_histograms(path)
 
-    return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
+        return cls(distribution=dist, molecule_histograms=nhists,
+                   activity_fractions=activity_fractions)
 
+    def get_composition(self):
+        """Calculate the average composition of each phase in the
+        simulation.
 
-def get_grand_potential(lnpi):
-    """Calculate the grand potential given the logarithm of the
-    probability distribution.
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing
+            the mole fraction of each species.
+        """
+        size = len(self.distribution)
+        if len(self.molecule_histograms) < 3:
+            return np.tile(1.0, size), np.tile(1.0, size)
 
-    If the order parameter is the total molecule number N, then
-    this is the absolute grand potential of the system.
-    Otherwise, it is a relative value for the analyzed species.
+        vapor_n, liquid_n = self.get_average_n()
 
-    Args:
-        lnpi: The logarithm of the probability distribution.
+        return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
 
-    Returns:
-        A float containing the grand potential.
-    """
-    prob = np.exp(lnpi)
-    prob /= sum(prob)
+    def get_grand_potential(self):
+        """Calculate the grand potential of the Simulation.
 
-    return np.log(prob[0] * 2.0)
+        If the order parameter is the total molecule number N, then
+        this is the absolute grand potential of the system.
+        Otherwise, it is a relative value for the analyzed species.
 
+        Returns:
+            A float containing the grand potential.
+        """
+        prob = np.exp(self.distribution.log_probabilities)
+        prob /= sum(prob)
 
-def get_average_n(nhists, weights, split=0.5):
-    """Find the average number of molecules in each phase.
+        return np.log(prob[0] * 2.0)
 
-    Args:
-        nhists: The molecule number visited states histograms.
-        weights: The logarithm of the initial activities minus the
-            logarithm of the coexistence activities.
-        split: A float: where (as a fraction of the order parameter
-            range) the liquid/vapor phase boundary lies.
+    def get_average_n(self, split=0.5):
+        """Find the average number of molecules in each phase.
 
-    Returns:
-        A (vapor, liquid) tuple of numpy arrays, each containing
-        the average number of molecules of each species.
-    """
-    bound = int(split * len(nhists[1]))
+            weights: The logarithm of the initial activities minus the
+                logarithm of the coexistence activities.
+            split: A float: where (as a fraction of the order parameter
+                range) the liquid/vapor phase boundary lies.
 
-    def average_phase(hist, weight, phase):
-        split_hist = hist[:bound] if phase == 'vapor' else hist[bound:]
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing
+            the average number of molecules of each species.
+        """
+        bound = int(split * len(self.distribution))
+        nhists = self.molecule_histograms
 
-        return [d.average(weight) for d in split_hist]
+        def average_phase(hist, weight, phase):
+            split_hist = hist[:bound] if phase == 'vapor' else hist[bound:]
 
-    vapor = np.array([average_phase(nh, weights[i], 'vapor')
-                      for i, nh in enumerate(nhists[1:])])
-    liquid = np.array([average_phase(nh, weights[i], 'liquid')
-                       for i, nh in enumerate(nhists[1:])])
+            return [d.average(weight) for d in split_hist]
 
-    return vapor, liquid
+        vapor = np.array([average_phase(nh, self.weights[i], 'vapor')
+                          for i, nh in enumerate(nhists[1:])])
+        liquid = np.array([average_phase(nh, self.weights[i], 'liquid')
+                           for i, nh in enumerate(nhists[1:])])
 
+        return vapor, liquid
 
-def transform(order_param, lnpi, amount):
-    """Perform linear transformation on a probability distribution.
+    def get_coexistence(self, species, x0=-0.001):
+        """Find the coexistence point of the simulation.
 
-    Args:
-        order_param: The order parameter values.
-        lnpi: The logarithm of the probabilities.
-        amount: The amount to shift the distribution.
+        Args:
+            species: The simulation's order parmeter species.
+            x0: The initial guess for the optimization solver.
 
-    Returns:
-        A numpy array with the shifted logarithmic probabilities.
-    """
-    return order_param * amount + lnpi
+        Returns:
+            A new Simulation object at the coexistence point.
+        """
+        def objective(x):
+            vapor, liquid = self.distribution.transform(x).split()
 
+            return np.abs(sum(np.exp(vapor.log_probabilities)) -
+                          sum(np.exp(liquid.log_probabilities)))
 
-def get_coexistence(sim, fractions, species, x0=-0.001):
-    """Find the coexistence point of a direct simulation.
+        solution = fsolve(objective, x0=x0, maxfev=10000)
+        dist = self.distribution.transform(solution)
+        if species == 0:
+            frac = activities_to_fractions(self.activities,
+                                           one_subensemble=True)
+            frac[0] += solution
+            act = fractions_to_activities(frac, one_subensemble=True)
+        else:
+            act = np.copy(self.activities)
+            act[species - 1] *= np.exp(solution)
+            frac = activities_to_fractions(act, one_subensemble=True)
 
-    Args:
-        sim: A dict, as returned by read_simulation().
-        fractions: A numpy array with the simulation's activity
-            fractions.
-        species: The simulation's order parmeter species.
-        x0: The initial guess for the optimization solver.
+        weights = np.nan_to_num(np.log(self.activities) - np.log(act))
+        nhists = copy.copy(self.molecule_histograms)
 
-    Returns:
-        A dict with the coexistence logarithm of the probability
-        distribution, activity fractions, and histogram weights (for
-        use in finding the weighted average of N).
-    """
-    init_act = fractions_to_activities(fractions)
-    split = int(0.5 * len(sim['order_param']))
-
-    def objective(x):
-        transformed = np.exp(transform(sim['order_param'], sim['lnpi'], x))
-        vapor = sum(transformed[:split])
-        liquid = sum(transformed[split:])
-
-        return np.abs(vapor - liquid)
-
-    solution = fsolve(objective, x0=x0, maxfev=10000)
-    lnpi = transform(sim['order_param'], sim['lnpi'], solution)
-    if species == 0:
-        frac = activities_to_fractions(init_act, one_subensemble=True)
-        frac[0] += solution
-        coex_act = fractions_to_activities(frac, one_subensemble=True)
-    else:
-        coex_act = np.copy(init_act)
-        coex_act[species - 1] *= np.exp(solution)
-
-    weight = np.nan_to_num(np.log(init_act) - np.log(coex_act))
-
-    return {'lnpi': lnpi, 'fractions': activities_to_fractions(coex_act),
-            'weight': weight}
+        return Simulation(distribution=dist, molecule_histograms=nhists,
+                          activity_fractions=frac, weights=weights)
 
 
-def read_data(path):
-    """Read the relevant data from a simulation directory.
-
-    Args:
-        path: The directory containing the data.
-
-    Returns:
-        A dict with the order parameter, logarithm of the
-        probability distribution, and molecule number visited states
-        histograms.
-    """
-    op = read_lnpi_op(os.path.join(path, 'lnpi_op.dat'))
-    nhists = read_all_molecule_histograms(path)
-
-    return {'order_param': op['index'], 'lnpi': op['lnpi'], 'nhists': nhists}
+def get_coexistence(sim, species, x0=-0.001):
+    return sim.get_coexistence(species, x0)

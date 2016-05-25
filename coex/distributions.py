@@ -409,6 +409,27 @@ class OrderParameterDistribution(Distribution):
         return OrderParameterDistribution(index=self.index,
                                           log_probabilities=smoothed)
 
+    def split(self, split=0.5):
+        bound = int(split * len(self))
+        ind, logp = self.index, self.log_probabilities
+        fst = OrderParameterDistribution(ind[:bound], logp[:bound])
+        snd = OrderParameterDistribution(ind[bound:], logp[bound:])
+
+        return fst, snd
+
+    def transform(self, amount):
+        """Perform linear transformation on a probability distribution.
+
+        Args:
+            order_param: The order parameter values.
+            lnpi: The logarithm of the probabilities.
+            amount: The amount to shift the distribution.
+
+        Returns:
+            A numpy array with the shifted logarithmic probabilities.
+        """
+        return self.log_probabilities + amount * self.index
+
     def write(self, path):
         """Write the new free energy to a file.
 
