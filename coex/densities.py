@@ -43,7 +43,7 @@ class DensityHistogram(object):
         dirname = os.path.dirname(path)
         if write_pzcnt:
             np.savetxt(os.path.join(dirname, 'pzcnt.dat'),
-                       np.column_stack(self.index, self.frequencies))
+                       np.column_stack((self.index, self.frequencies)))
 
         with open(path, 'w') as f:
             for i, col in enumerate(np.transpose(self.histogram)):
