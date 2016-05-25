@@ -1,4 +1,4 @@
-"""Convert activity fractions to activities and vice versa."""
+"""Functions dealing with activities and activity fractions."""
 
 import numpy as np
 
