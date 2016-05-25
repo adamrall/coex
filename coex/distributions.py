@@ -511,6 +511,16 @@ class OrderParameterFrequencyDistribution(FrequencyDistribution):
         _write_order_parameter_distribution(path, self.index, self.samples)
 
 
+def read_hits(path):
+    base = os.path.basename(path)
+    if 'op' in base:
+        return OrderParameterFrequencyDistribution.from_file(path)
+    elif 'tr' in base:
+        return GrowthExpandedFrequencyDistribution.from_file(path)
+    else:
+        raise NotImplementedError
+
+
 class PropertyList(object):
     freq_class = None
     prop_file = None
@@ -585,3 +595,28 @@ class GrowthExpandedPropertyList(PropertyList):
         arr = np.append(ind['number'], ind['subensembles'], ind['molecules'],
                         ind['stages'], self.properties)
         np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
+
+
+def _generic_reader(op_cls, tr_cls, path):
+    base = os.path.basename(path)
+    if 'op' in base:
+        return op_cls.from_file(path)
+    elif 'tr' in base:
+        return tr_cls.from_file(path)
+    else:
+        return NotImplementedError
+
+
+def read_prop(path):
+    return _generic_reader(op_cls=OrderParameterPropertyList,
+                           tr_cls=GrowthExpandedPropertyList, path=path)
+
+
+def read_lnpi(path):
+    return _generic_reader(op_cls=OrderParameterDistribution,
+                           tr_cls=GrowthExpandedDistribution, path=path)
+
+
+def read_pacc(path):
+    return _generic_reader(op_cls=OrderParameterTransitionMatrix,
+                           tr_cls=GrowthExpandedTransitionMatrix, path=path)
