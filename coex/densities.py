@@ -1,5 +1,6 @@
 """Functions dealing with density histograms."""
 
+import glob
 import os.path
 
 import numpy as np
@@ -16,7 +17,8 @@ class DensityHistogram(object):
     def from_file(cls, path):
         histogram = np.transpose(np.loadtxt(path))
         dirname = os.path.dirname(path)
-        index, frequencies = np.loadtxt(os.path.join(dirname, 'pzcnt.dat'))
+        index, frequencies = np.loadtxt(os.path.join(dirname, 'pzcnt.dat'),
+                                        unpack=True)
 
         return cls(index=index, distances=histogram[1],
                    histogram=histogram[2:], frequencies=frequencies)
@@ -46,3 +48,19 @@ class DensityHistogram(object):
         with open(path, 'w') as f:
             for i, col in enumerate(np.transpose(self.histogram)):
                 print(i, self.distances(i), col, file=f)
+
+
+def read_pzhist(path):
+    return DensityHistogram.from_file(path)
+
+
+def read_all_pzhists(path):
+    files = sorted(glob.glob(os.path.join(path, 'pzhist_*.dat')))
+
+    return {f: read_pzhist(f) for f in files}
+
+
+def combine_all_pzhists(path, runs):
+    files = sorted(glob.glob(os.path.join(path, runs[0], 'pzhist_*.dat')))
+
+    return {f: DensityHistogram.from_combined_runs(f, runs) for f in files}
