@@ -187,14 +187,14 @@ class VisitedStatesHistogram(object):
 
     def write(self, path):
         most_sampled = 0
+        step = self[-1].bins[1] - self[-1].bins[0]
         with open(_get_limits_path(path), 'w') as f:
             for i, d in enumerate(self):
                 sampled = len(d)
                 most_sampled = max(most_sampled, sampled)
                 min_bin = np.amin(d.bins)
                 max_bin = np.amax(d.bins)
-                step = d.bins[1] - d.bins[0]
-                print('{:8d} {:7d} {:15.7f} {:15.7f} {:15.7f}'.format(
+                print('{:8d} {:7d} {:15.7e} {:15.7e} {:15.7e}'.format(
                     i, sampled, min_bin, max_bin, step), file=f)
 
         raw_hist = np.zeros([most_sampled, len(self) + 1])
