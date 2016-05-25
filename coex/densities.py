@@ -1,59 +1,48 @@
 """Functions dealing with density histograms."""
 
-import glob
 import os.path
 
 import numpy as np
 
 
-def combine_pzcnt(path, runs):
-    """Combine a set of density histogram count files.
+class DensityHistogram(object):
+    def __init__(self, index, distances, histogram, frequencies):
+        self.index = index
+        self.distances = distances
+        self.histogram = histogram
+        self.frequencies = frequencies
 
-    Args:
-        path: The base path containing the data to combine.
-        runs: The list of runs to combine.
+    @classmethod
+    def from_file(cls, path):
+        histogram = np.transpose(np.loadtxt(path))
+        dirname = os.path.dirname(path)
+        index, frequencies = np.loadtxt(os.path.join(dirname, 'pzcnt.dat'))
 
-    Returns:
-        A dict containing the index and combined density histogram
-        counts for each order parameter value.
-    """
-    return {'index': np.loadtxt(os.path.join(path, runs[0], 'pzcnt.dat'),
-                                usecols=(0, ), dtype='int'),
-            'counts': sum([np.loadtxt(os.path.join(path, r, 'pzcnt.dat'),
-                                      usecols=(1, )) for r in runs])}
+        return cls(index=index, distances=histogram[1],
+                   histogram=histogram[2:], frequencies=frequencies)
 
+    @classmethod
+    def from_combination(cls, hists):
+        index, distances = hists[0].index, hists[0].distances
+        freq_sum = sum([h.frequencies for h in hists])
+        weighted_hist = sum([h.frequencies * np.transpose(h.histogram)
+                             for h in hists])
+        hist = np.transpose(np.nan_to_num(weighted_hist / freq_sum))
 
-def combine_all_pzhists(path, runs):
-    """Combine all denisty histograms for a set of runs.
+        return DensityHistogram(index=index, distances=distances,
+                                histogram=hist, frequencies=freq_sum)
 
-    Args:
-        path: The base path containing the data to combine.
-        runs: The list of runs to combine.
+    @classmethod
+    def from_combined_runs(cls, path, runs):
+        return cls.from_combination([cls.from_file(os.path.join(path, r))
+                                     for r in runs])
 
-    Returns:
-        A dict containing the density histogram index, z distance
-        bins, and the combined histograms, indexed by file name.
-    """
-    index, z_bins = np.loadtxt(os.path.join(path, runs[0], 'pzhist_01_01.dat'),
-                               usecols=(0, 1), unpack=True)
-    cnts = [np.loadtxt(os.path.join(path, r, 'pzcnt.dat'), usecols=(1, ))
-            for r in runs]
-    cnts_sum = sum(cnts)
-    cnts_sum[cnts_sum < 1] = 1.0
+    def write(self, path, write_pzcnt=False):
+        dirname = os.path.dirname(path)
+        if write_pzcnt:
+            np.savetxt(os.path.join(dirname, 'pzcnt.dat'),
+                       np.column_stack(self.index, self.frequencies))
 
-    def read_pzhist(run, hist_file):
-        return np.loadtxt(os.path.join(path, run, hist_file))[:, 2:]
-
-    def combine_pzhist(hist_file):
-        weighted_sums = np.sum([read_pzhist(r, hist_file) * cnts[i]
-                                for i, r in enumerate(sorted(runs))], axis=0)
-        return weighted_sums / cnts_sum
-
-    hist_files = sorted([os.path.basename(f)
-                         for f in glob.glob(os.path.join(path, runs[0],
-                                                         'pzhist_*.dat'))])
-    out = {hf: combine_pzhist(hf) for hf in hist_files}
-    out['index'] = index.astype('int')
-    out['z_bins'] = z_bins
-
-    return out
+        with open(path, 'w') as f:
+            for i, col in enumerate(np.transpose(self.histogram)):
+                print(i, self.distances(i), col, file=f)
