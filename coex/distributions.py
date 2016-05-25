@@ -426,9 +426,13 @@ class OrderParameterDistribution(Distribution):
             amount: The amount to shift the distribution.
 
         Returns:
-            A numpy array with the shifted logarithmic probabilities.
+            A new OrderParameterDistribution with transformed log
+            probabilities.
         """
-        return self.log_probabilities + amount * self.index
+        transformed = self.log_probabilities + amount * self.index
+
+        return OrderParameterDistribution(index=self.index,
+                                          log_probabilities=transformed)
 
     def write(self, path):
         """Write the new free energy to a file.
