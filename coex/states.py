@@ -214,6 +214,14 @@ class VisitedStatesHistogram(object):
         np.savetxt(path, raw_hist, fmt='%8.d', delimiter='  ')
 
 
+def read_ehist(path):
+    return VisitedStatesHistogram.from_file(path)
+
+
+def read_nhist(path):
+    return VisitedStatesHistogram.from_file(path)
+
+
 def read_all_molecule_histograms(path):
     """Read all of the molecule number visited states histograms in a
     directory.
@@ -284,3 +292,7 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
             d.bins /= cubic_meters
 
         super(VisitedStatesHistogram, units_copy).write(path)
+
+
+def read_vhist(path, use_log_volume):
+    return VolumeVisitedStatesHistogram.from_file(path, use_log_volume)
