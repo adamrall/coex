@@ -9,7 +9,8 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activities import activities_to_fractions, fractions_to_activities
-from coex.activities import read_bz, read_zz
+from coex.activities import read_activity_fractions
+from coex.activities import read_tee_activity_fractions
 from coex.distributions import OrderParameterDistribution
 from coex.states import read_all_molecule_histograms, VisitedStatesDistribution
 
@@ -43,11 +44,11 @@ class Phase(object):
         nhists = read_all_molecule_histograms(path)
         beta = None
         try:
-            bz = read_bz(os.path.join(path, 'bz.dat'))
+            bz = read_tee_activity_fractions(os.path.join(path, 'bz.dat'))
             beta = bz['beta']
             fractions = bz['fractions']
         except FileNotFoundError:
-            fractions = read_zz(os.path.join(path, 'zz.dat'))
+            fractions = read_activity_fractions(os.path.join(path, 'zz.dat'))
 
         return cls(distribution=dist, molecule_histograms=nhists,
                    activity_fractions=fractions, beta=beta)

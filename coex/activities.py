@@ -65,7 +65,24 @@ def fractions_to_activities(fractions, one_subensemble=False):
     return activities
 
 
-def read_bz(path):
+def read_activity_fractions(path):
+    """Read the activity fractions of an AFEE simulation.
+
+    Args:
+        path: The location of the 'zz.dat' file to read.
+
+    Returns:
+        A numpy array: the first row contains the logarithm of the sum
+        of the activities for each subensemble, and each subsequent
+        row contains the activity fractions of each species after the
+        first.
+    """
+    # Truncate the first column, which just contains an index, and
+    # transpose the rest.
+    return np.transpose(np.loadtxt(path))[1:]
+
+
+def read_tee_activity_fractions(path):
     """Read the activity fractions and beta values of a TEE simulation.
 
     Args:
@@ -81,20 +98,3 @@ def read_bz(path):
     zz = np.transpose(np.loadtxt(path))[2:]
 
     return {'beta': beta, 'fractions': zz}
-
-
-def read_zz(path):
-    """Read the activity fractions of an AFEE simulation.
-
-    Args:
-        path: The location of the 'zz.dat' file to read.
-
-    Returns:
-        A numpy array: the first row contains the logarithm of the sum
-        of the activities for each subensemble, and each subsequent
-        row contains the activity fractions of each species after the
-        first.
-    """
-    # Truncate the first column, which just contains an index, and
-    # transpose the rest.
-    return np.transpose(np.loadtxt(path))[1:]
