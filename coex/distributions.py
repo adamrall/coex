@@ -179,10 +179,11 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
     def write(self, path):
         ind = self.index
         fmt = 6 * ['%.8d'] + 2 * ['%10.5g']
-        arr = np.append(ind['number'], ind['subensembles'], ind['molecules'],
-                        ind['stages'], self.forward_attempts,
-                        self.reverse_attempts, self.forward_probabilities,
-                        self.reverse_probabilities)
+        arr = np.column_stack(ind['number'], ind['subensembles'],
+                              ind['molecules'], ind['stages'],
+                              self.forward_attempts, self.reverse_attempts,
+                              self.forward_probabilities,
+                              self.reverse_probabilities)
         np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
@@ -246,7 +247,7 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
 
     def write(self, path):
         fmt = 3 * ['%.8d'] + 2 * ['%10.5g']
-        arr = np.append(
+        arr = np.column_stack(
             self.index, self.forward_attempts, self.reverse_attempts,
             self.forward_probabilities, self.reverse_probabilities)
         np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
@@ -254,13 +255,13 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
 
 def _write_growth_expanded_distribution(path, index, probabilities):
     fmt = 4 * ['%.8d'] + ['%10.5g']
-    arr = np.append(index['numbers'], index['subensembles'],
-                    index['molecules'], index['stages'], probabilities)
+    arr = np.column_stack(index['numbers'], index['subensembles'],
+                          index['molecules'], index['stages'], probabilities)
     np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
 def _write_order_parameter_distribution(path, index, probabilities):
-    np.savetxt(path, np.transpose(np.append(index, probabilities)),
+    np.savetxt(path, np.column_stack(index, probabilities),
                fmt=['%.8d', '%10.5g'], delimiter='  ')
 
 
@@ -610,7 +611,8 @@ class OrderParameterPropertyList(PropertyList):
 
     def write(self, path):
         fmt = ['%.8d'] + len(self.properties) * ['%10.5g']
-        np.savetxt(path, np.transpose(np.append(self.index, self.properties)),
+        np.savetxt(path, np.transpose(np.column_stack(self.index,
+                                                      self.properties)),
                    fmt=fmt, delimiter='  ')
 
 
@@ -631,8 +633,8 @@ class GrowthExpandedPropertyList(PropertyList):
     def write(self, path):
         ind = self.index
         fmt = 4 * ['%.8d'] + len(self.properties) * ['%10.5g']
-        arr = np.append(ind['number'], ind['subensembles'], ind['molecules'],
-                        ind['stages'], self.properties)
+        arr = np.column_stack(ind['number'], ind['subensembles'],
+                              ind['molecules'], ind['stages'], self.properties)
         np.savetxt(path, np.transpose(arr), fmt=fmt, delimiter='  ')
 
 
