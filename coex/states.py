@@ -27,15 +27,7 @@ class VisitedStatesDistribution(object):
         return len(self.bins)
 
     def __str__(self):
-        string = "bins       counts\n"
-        if np.issubdtype(self.bins.dtype, np.integer):
-            return string + "\n".join(
-                ["{:<9d}  {:<}".format(b, self.counts[i])
-                 for i, b in enumerate(self.bins)])
-        else:
-            return string + "\n".join(
-                ["{:<.2e}  {:<}".format(b, self.counts[i])
-                 for i, b in enumerate(self.bins)])
+        return "bins: {}, counts: {}\n".format(self.bins, self.counts)
 
     def __repr__(self):
         return str(self)
