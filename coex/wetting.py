@@ -18,11 +18,12 @@ def get_cos_theta(s, d):
     return -(s - d) / (s + d)
 
 
-def get_drying_coefficient(lnpi):
+def get_drying_coefficient(distribution):
     """Calculate the drying coefficient.
 
     Args:
-        lnpi: The logarithm of the probability distribution.
+        distribution: An OrderParameterDistribution from a direct (GC)
+            drying simulation.
 
     Returns:
         The dimensionless drying coefficient (beta*d*A).
@@ -30,7 +31,7 @@ def get_drying_coefficient(lnpi):
     See also:
         get_spreading_coefficient()
     """
-    potential = -lnpi
+    potential = -distribution.log_probabilities
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[:split])
@@ -43,10 +44,9 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     simulations.
 
     Args:
-        valley: The logarithm of the probability distribution of the
-            valley region.
-        plateau: The logarithm of the probability distribution of the
-            plateau region.
+        valley: An OrderParameterDistribution from the valley region.
+        plateau: An OrderParameterDistribution from the plateau
+            region.
         index: The reference subensemble number.
         reference: The reference spreading/drying coefficient.
 
@@ -57,11 +57,12 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     return reference - (valley - valley[index]) + (plateau - plateau[index])
 
 
-def get_spreading_coefficient(lnpi):
+def get_spreading_coefficient(distribution):
     """Calculate the spreading coefficient.
 
     Args:
-        potential: The logarithm of the probability distribution.
+        distribution: An OrderParameterDistribution from a direct (GC)
+            spreading simulation.
 
     Returns:
         The dimensionless spreading coefficient (beta*s*A).
@@ -69,7 +70,7 @@ def get_spreading_coefficient(lnpi):
     See Also:
         get_drying_coefficient()
     """
-    potential = -lnpi
+    potential = -distribution.log_probabilities
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[split:])
