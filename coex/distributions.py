@@ -269,11 +269,46 @@ class Distribution(object):
         self.index = index
         self.log_probabilities = log_probabilities
 
+    def __add__(self, other):
+        if isinstance(other, Distribution):
+            return self.log_probabilities + other.log_probabilities
+        elif isinstance(other, (np.ndarray, int, float)):
+            return self.log_probabilities + other
+        else:
+            return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, Distribution):
+            return self.log_probabilities - other.log_probabilities
+        elif isinstance(other, (np.ndarray, int, float)):
+            return self.log_probabilities - other
+        else:
+            return NotImplemented
+
+    def __mul__(self, other):
+        if isinstance(other, Distribution):
+            return self.log_probabilities * other.log_probabilities
+        elif isinstance(other, (np.ndarray, int, float)):
+            return self.log_probabilities * other
+        else:
+            return NotImplemented
+
+    def __div__(self, other):
+        if isinstance(other, Distribution):
+            return self.log_probabilities / other.log_probabilities
+        elif isinstance(other, (np.ndarray, int, float)):
+            return self.log_probabilities / other
+        else:
+            return NotImplemented
+
     def __len__(self):
         return len(self.log_probabilities)
 
     def __getitem__(self, i):
         return self.log_probabilities[i]
+
+    def __setitem__(self, i, value):
+        self.log_probabilities[i] = value
 
     def __iter__(self):
         for p in self.log_probabilities:
