@@ -152,6 +152,10 @@ class Phase(object):
                          for i, h in enumerate(self.molecule_histograms[1:])])
 
 
+def read_phase(path, is_vapor=False):
+    return Phase.from_directory(path, is_vapor)
+
+
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     """Find the coexistence point of two liquid phases.
 

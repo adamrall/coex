@@ -140,3 +140,7 @@ class Simulation(object):
 
 def get_coexistence(sim, species, x0=-0.001):
     return sim.get_coexistence(species, x0)
+
+
+def read_simulation(path, activity_fractions):
+    return Simulation.from_directory(path, activity_fractions)
