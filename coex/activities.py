@@ -16,9 +16,6 @@ def activities_to_fractions(activities, one_subensemble=False):
         and the activity fractions of each species after the first.
         If the array is multidimensional, each column corresponds to
         a subensemble from an expanded ensemble simulation.
-
-    See Also:
-        fractions_to_activities() for the opposite conversion.
     """
     if isinstance(activities, list):
         activities = np.array(activities)
@@ -46,9 +43,6 @@ def fractions_to_activities(fractions, one_subensemble=False):
         A numpy array with the activities. If the array is
         multidimensional, each column corresponds to a subensemble
         from an expanded ensemble simulation.
-
-    See Also:
-        activities_to_fractions() for the opposite conversion.
     """
     if isinstance(fractions, list):
         fractions = np.array(fractions)
