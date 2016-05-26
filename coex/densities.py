@@ -130,7 +130,7 @@ def read_all_pzhists(path):
     """
     files = sorted(glob.glob(os.path.join(path, 'pzhist_*.dat')))
 
-    return {f: read_pzhist(f) for f in files}
+    return {os.path.basename(f): read_pzhist(f) for f in files}
 
 
 def combine_all_pzhists(path, runs):
@@ -147,4 +147,5 @@ def combine_all_pzhists(path, runs):
     """
     files = sorted(glob.glob(os.path.join(path, runs[0], 'pzhist_*.dat')))
 
-    return {f: DensityHistogram.from_combined_runs(f, runs) for f in files}
+    return {os.path.basename(f): DensityHistogram.from_combined_runs(f, runs)
+            for f in files}
