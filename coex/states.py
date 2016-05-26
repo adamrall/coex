@@ -19,6 +19,15 @@ cubic_meters = 1.0e-30
 
 
 class VisitedStatesDistribution(object):
+    """A frequency distribution for a given property (energy, volume,
+    molecule count) of a single subensemble of a simulation.
+
+    Attributes:
+        bins: A numpy array with the values of the property.
+        counts: An array with the number of times each value was
+            visited in the simulation.
+    """
+
     def __init__(self, bins, counts):
         self.bins = bins
         self.counts = counts
@@ -33,8 +42,8 @@ class VisitedStatesDistribution(object):
         return str(self)
 
     def reweight(self, amount):
-        """Get the change in free energy due to histogram reweighting
-        of a visited states distribution.
+        """Get the change in free energy due to histogram
+        reweighting.
 
         Args:
             amount: The difference in the relevant property.
@@ -68,6 +77,16 @@ class VisitedStatesDistribution(object):
 
     @staticmethod
     def from_file(path, subensemble):
+        """Read a single distribution from a pair of *hist*.dat and
+        *lim*.dat files.
+
+        Args:
+            path: The location of the *hist*.dat file.
+            subensemble: The subensemble number of the distribution.
+
+        Returns:
+            A VisitedStatesDistribution object.
+        """
         if 'vhist' in os.path.basename(path):
             return VolumeVisitedStatesHistogram.from_file(path)[subensemble]
 
@@ -80,6 +99,13 @@ def _get_limits_path(hist_file):
 
 
 class VisitedStatesHistogram(object):
+    """A list of visited states distributions, each corresponding to
+    one subensemble of the simulation.
+
+    Attributes:
+        distributions: A list of VisitedStatesDistribution objects.
+    """
+
     def __init__(self, distributions):
         self.distributions = distributions
 
@@ -110,16 +136,15 @@ class VisitedStatesHistogram(object):
         return np.array([d.average(weights[i]) for i, d in self])
 
     @classmethod
-    def from_combined_runs(cls, path, runs, hist_file):
+    def from_combination(cls, hists):
         """Combine a set of visited states histograms.
 
         Args:
             hists: A list of histograms.
 
         Returns:
-            A histogram with the combined data.
+            A VisitedStatesHistogram with the combined data.
         """
-        hists = [cls.from_file(os.path.join(path, r, hist_file)) for r in runs]
         first_dist = hists[0][0]
         step = first_dist.bins[1] - first_dist.bins[0]
         subensembles = len(first_dist)
@@ -138,6 +163,22 @@ class VisitedStatesHistogram(object):
             return VisitedStatesDistribution(bins=bins, counts=counts)
 
         return cls([combine_subensemble(i) for i in range(subensembles)])
+
+    @classmethod
+    def from_combined_runs(cls, path, runs, hist_file):
+        """Combine a visited states histogram across a series of
+        production runs.
+
+        Args:
+            path: The location of the production runs.
+            runs: The list of runs to combine.
+            hist_file: The name of the histogram to combine.
+
+        Returns:
+            A VisitedStatesHistogram with the combined data.
+        """
+        return cls.from_combination(
+            [cls.from_file(os.path.join(path, r, hist_file)) for r in runs])
 
     @classmethod
     def from_file(cls, path):
@@ -174,6 +215,11 @@ class VisitedStatesHistogram(object):
         return cls([create_distribution(line) for line in limits])
 
     def write(self, path):
+        """Write a histogram to a pair of hist and lim files.
+
+        Args:
+            path: The name of the *hist*.dat file to write.
+        """
         most_sampled = 0
         step = self[-1].bins[1] - self[-1].bins[0]
         with open(_get_limits_path(path), 'w') as f:
@@ -195,10 +241,12 @@ class VisitedStatesHistogram(object):
 
 
 def read_ehist(path):
+    """Read an energy histogram from an ehist.dat file."""
     return VisitedStatesHistogram.from_file(path)
 
 
 def read_nhist(path):
+    """Read a molecule number histogram from an nhist_*.dat file."""
     return VisitedStatesHistogram.from_file(path)
 
 
@@ -211,11 +259,7 @@ def read_all_molecule_histograms(path):
             to read.
 
     Returns:
-        A list of histograms as read by read_histogram. Each one is
-        itself a list of dicts with the keys 'bins' and 'counts'.
-
-    See Also:
-        read_histogram()
+        A sorted list of VisitedStatesHistogram objects.
     """
     hist_files = sorted(glob.glob(os.path.join(path, "nhist_??.dat")))
 
@@ -242,9 +286,16 @@ def combine_all_molecule_histograms(path, runs):
 
 
 class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
-    def __init__(self, distributions, use_log_volume=False):
-        self.use_log_volume = use_log_volume
+    """A list of volume visited states distributions.
+
+    Attributes:
+        distributions: The list of VisitedStatesDistribution objects.
+    """
+
+    def __init__(self, distributions):
         super(VolumeVisitedStatesHistogram, self).__init__(distributions)
+
+    def _adjust_units(self, use_log_volume=False):
         for d in self:
             if use_log_volume:
                 d.bins = np.exp(d.bins)
@@ -253,17 +304,48 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
 
     @classmethod
     def from_combined_runs(cls, path, runs, use_log_volume=False):
-        combined = VisitedStatesHistogram.from_combined_runs(path, runs,
-                                                             'vhist.dat')
+        """Construct a volume histogram by combining the histograms
+        from several production runs.
 
-        return cls(combined.distributions, use_log_volume)
+        Args:
+            path: The location of the production runs.
+            runs: The list of runs to combine.
+            use_log_volume: A bool; True if the vhist.dat file has
+                ln(V) bins instead of volume bins.
+
+        Returns:
+            A VolumeVisitedStatesHistogram with the combined data.
+        """
+        hist = VisitedStatesHistogram.from_combined_runs(path, runs,
+                                                         'vhist.dat')
+
+        return cls(hist.distributions)._adjust_units(use_log_volume)
 
     @classmethod
     def from_file(cls, path, use_log_volume=False):
-        return cls(VisitedStatesHistogram.from_file(path).distributions,
-                   use_log_volume)
+        """Read a volume histogram from a vhist.dat file.
 
-    def write(self, path):
+        Args:
+            path: The location of the file.
+            use_log_volume: A bool; True if the file has ln(V) bins
+                instead of volume bins.
+
+        Returns:
+            A VolumeVisitedStatesHistogram object.
+        """
+        hist = VisitedStatesHistogram.from_file(path)
+
+        return cls(hist.distributions)._adjust_units(use_log_volume)
+
+    def write(self, path, use_log_volume=False):
+        """Write the histogram to a pair of vhist.dat and vlim.dat
+        files.
+
+        Args:
+            path: The location of the hist file.
+            use_log_volume: A bool; True if the lim file should be
+                written using ln(V) bins instead of volume bins.
+        """
         units_copy = copy.copy(self)
         for d in units_copy:
             if units_copy.use_log_volume:
@@ -275,4 +357,7 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
 
 
 def read_vhist(path, use_log_volume):
+    """Read a volume visited states histogram from a vhist.dat
+    file.
+    """
     return VolumeVisitedStatesHistogram.from_file(path, use_log_volume)
