@@ -14,6 +14,21 @@ from coex.states import read_all_molecule_histograms
 
 
 class Simulation(object):
+    """Calculate the coexistence properties of the output from a
+    direct grand canonical simulation.
+
+    Attributes:
+        distribution: An OrderParameterDistribution object.
+        molecule_histograms: A list of molecule number
+            VisitedStatesHistogram objects.
+        activity_fractions: A 2D numpy array with the activity
+            fractions (chi, eta_j) of the simulation.
+        weights: The logarithm of the initial activities minus the
+            logarithm of the coexistence activities, used to
+            calculate the average number of molecules at the
+            coexistence point via histogram reweighting.
+    """
+
     def __init__(self, distribution, molecule_histograms, activity_fractions,
                  weights=None):
         self.distribution = distribution
@@ -79,8 +94,7 @@ class Simulation(object):
     def get_average_n(self, split=0.5):
         """Find the average number of molecules in each phase.
 
-            weights: The logarithm of the initial activities minus the
-                logarithm of the coexistence activities.
+        Args:
             split: A float: where (as a fraction of the order parameter
                 range) the liquid/vapor phase boundary lies.
 
@@ -103,7 +117,7 @@ class Simulation(object):
 
         return vapor, liquid
 
-    def get_coexistence(self, species, x0=-0.001):
+    def get_coexistence(self, species=1, x0=-0.001):
         """Find the coexistence point of the simulation.
 
         Args:
@@ -139,8 +153,18 @@ class Simulation(object):
 
 
 def get_coexistence(sim, species, x0=-0.001):
+    """Find the coexistence point of the simulation.
+
+    Args:
+        species: The simulation's order parmeter species.
+        x0: The initial guess for the optimization solver.
+
+    Returns:
+        A new Simulation object at the coexistence point.
+    """
     return sim.get_coexistence(species, x0)
 
 
 def read_simulation(path, activity_fractions):
+    """Read the data from a simulation directory."""
     return Simulation.from_directory(path, activity_fractions)
