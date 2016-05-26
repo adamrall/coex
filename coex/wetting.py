@@ -27,9 +27,6 @@ def get_drying_coefficient(distribution):
 
     Returns:
         The dimensionless drying coefficient (beta*d*A).
-
-    See also:
-        get_spreading_coefficient()
     """
     potential = -distribution.log_probabilities
     valley = np.amin(potential)
@@ -66,9 +63,6 @@ def get_spreading_coefficient(distribution):
 
     Returns:
         The dimensionless spreading coefficient (beta*s*A).
-
-    See Also:
-        get_drying_coefficient()
     """
     potential = -distribution.log_probabilities
     valley = np.amin(potential)
