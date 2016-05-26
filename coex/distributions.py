@@ -22,6 +22,21 @@ import numpy as np
 
 
 class TransitionMatrix(object):
+    """A base class for acceptance probability matrices.
+
+    Attributes:
+        index: A numpy array or dict describing the states in the
+            matrix.
+        forward_attempts: An array with the number of forward
+            transition attempts for each state.
+        reverse_attempts: An array with the number of reverse
+            transition attempts for each state.
+        forward_probabilities: An array with the acceptance
+            probability for forward transitions from each state.
+        reverse_probabilites: An array with the acceptance
+            probability for forward transitions from each state.
+    """
+
     matrix_file = None
 
     def __init__(self, index, forward_attempts, reverse_attempts,
@@ -37,6 +52,14 @@ class TransitionMatrix(object):
 
     @classmethod
     def from_combination(cls, matrices):
+        """Combine a set of transition matrices.
+
+        Args:
+            matrices: A list of TransitionMatrix objects to combine.
+
+        Returns:
+            A TransitionMatrix object with the combined data.
+        """
         index = matrices[0].index
         fw_att = sum([m.forward_attempts for m in matrices])
         rev_att = sum([m.reverse_attempts for m in matrices])
@@ -84,7 +107,7 @@ class TransitionMatrix(object):
                 sampling quality.
 
         Returns:
-            A boolean numpy array, where True denotes indices which
+            A boolean numpy array, where True denotes states which
             don't meet the sampling quality threshold.
         """
         fw, rev = self.forward_attempts, self.reverse_attempts
@@ -108,6 +131,23 @@ def _read_growth_expanded_index(path):
 
 
 class GrowthExpandedTransitionMatrix(TransitionMatrix):
+    """An acceptance probability matrix for a growth expanded
+    ensemble path.
+
+    Attributes:
+        index: A dict with the keys 'numbers', 'subensembles',
+            'molecules', and 'stages' describing the states in the
+            matrix.
+        forward_attempts: An array with the number of forward
+            transition attempts for each state.
+        reverse_attempts: An array with the number of reverse
+            transition attempts for each state.
+        forward_probabilities: An array with the acceptance
+            probability for forward transitions from each state.
+        reverse_probabilites: An array with the acceptance
+            probability for forward transitions from each state.
+    """
+
     matrix_file = 'pacc_tr_cr.dat'
 
     def __init__(self, index, forward_attempts, reverse_attempts,
@@ -177,6 +217,11 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
             forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
 
     def write(self, path):
+        """Write the transition matrix to a file.
+
+        Args:
+            path: The location of the file to write.
+        """
         ind = self.index
         fmt = 6 * ['%8d'] + 2 * ['%10.5g']
         arr = np.column_stack((ind['number'], ind['subensembles'],
@@ -188,6 +233,20 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
 
 
 class OrderParameterTransitionMatrix(TransitionMatrix):
+    """An acceptance probability matrix for the order parameter path.
+
+    Attributes:
+        index: An array with the subensemble numbers.
+        forward_attempts: An array with the number of forward
+            transition attempts for each state.
+        reverse_attempts: An array with the number of reverse
+            transition attempts for each state.
+        forward_probabilities: An array with the acceptance
+            probability for forward transitions from each state.
+        reverse_probabilites: An array with the acceptance
+            probability for forward transitions from each state.
+    """
+
     matrix_file = 'pacc_op_cr.dat'
 
     def __init__(self, index, forward_attempts, reverse_attempts,
@@ -246,6 +305,11 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
             forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
 
     def write(self, path):
+        """Write the transition matrix to a file.
+
+        Args:
+            path: The location of the file to write.
+        """
         fmt = 3 * ['%8d'] + 2 * ['%10.5g']
         arr = np.column_stack(
             (self.index, self.forward_attempts, self.reverse_attempts,
@@ -273,6 +337,15 @@ def _write_order_parameter_distribution(path, index, probabilities,
 
 
 class Distribution(object):
+    """A base class for log probability distributions.
+
+    Attributes:
+        index: A numpy array or dict describing the states in the
+            distribution's path.
+        log_probabilities: An array with the logarithm of the
+            probability distribution.
+    """
+
     def __init__(self, index, log_probabilities):
         self.index = index
         self.log_probabilities = log_probabilities
@@ -324,6 +397,17 @@ class Distribution(object):
 
 
 class GrowthExpandedDistribution(Distribution):
+    """The logarithm of the probability distribution along a growth
+    expanded ensemble path.
+
+    Attributes:
+        index: A dict with the keys 'numbers', 'subensembles',
+            'molecules', and 'stages' describing the states in the
+            path.
+        log_probabilities: A numpy array with the logarithm of the
+            probability distribution.
+    """
+
     def __init__(self, index, log_probabilities):
         super(GrowthExpandedDistribution, self).__init__(index,
                                                          log_probabilities)
@@ -406,6 +490,15 @@ class GrowthExpandedDistribution(Distribution):
 
 
 class OrderParameterDistribution(Distribution):
+    """The logarithm of the probability distribution along a growth
+    expanded ensemble path.
+
+    Attributes:
+        index: A numpy array with the list of order parameter values.
+        log_probabilities: A numpy array with the logarithm of the
+            probability distribution.
+    """
+
     def __init__(self, index, log_probabilities):
         super(OrderParameterDistribution, self).__init__(index,
                                                          log_probabilities)
@@ -453,6 +546,15 @@ class OrderParameterDistribution(Distribution):
                                           log_probabilities=smoothed)
 
     def split(self, split=0.5):
+        """Split a distribution into two parts.
+
+        Args:
+            split: The fraction of the length to use as the boundary
+                for the two parts.
+
+        Returns:
+            A tuple of OrderParameterDistribution objects.
+        """
         bound = int(split * len(self))
         ind, logp = self.index, self.log_probabilities
         fst = OrderParameterDistribution(ind[:bound], logp[:bound])
@@ -488,6 +590,15 @@ class OrderParameterDistribution(Distribution):
 
 
 class FrequencyDistribution(object):
+    """A base class for frequency distributions.
+
+    Attributes:
+        index: A numpy array or dict describing the states in the
+            distribution.
+        samples: An array with the number of times each state was
+            visited in the simulation.
+    """
+
     sample_file = None
 
     def __init__(self, index, samples):
@@ -506,6 +617,16 @@ class FrequencyDistribution(object):
 
     @classmethod
     def from_combination(cls, distributions):
+        """Combine a list of frequency distributions.
+
+        Args:
+            distributions: The list of FrequencyDistribution objects
+                to combine.
+
+        Returns:
+            A new FrequencyDistribution object with the combined
+            data.
+        """
         index = distributions[0].index
         samples = sum([d.samples for d in distributions])
 
@@ -513,6 +634,16 @@ class FrequencyDistribution(object):
 
     @classmethod
     def from_combined_runs(cls, path, runs):
+        """Combine a frequency distribution across a series of
+        production runs.
+
+        Args:
+            path: The directory containing the production runs.
+            runs: The list of runs to combine.
+
+        Returns:
+            A FrequencyDistribution object with the combined data.
+        """
         return cls.from_combination(
             [cls.from_file(os.path.join(path, r, cls.sample_file))
              for r in runs])
@@ -523,6 +654,17 @@ class FrequencyDistribution(object):
 
 
 class GrowthExpandedFrequencyDistribution(FrequencyDistribution):
+    """The frequency distribution along a growth expanded ensemble
+    path.
+
+    Attributes:
+        index: A dict with the keys 'numbers', 'subensembles',
+            'molecules', and 'stages' describing the states in the
+            path.
+        samples: An array with the number of times each state was
+            visited in the simulation.
+    """
+
     sample_file = 'hits_tr.dat'
 
     def __init__(self, index, samples):
@@ -531,17 +673,38 @@ class GrowthExpandedFrequencyDistribution(FrequencyDistribution):
 
     @classmethod
     def from_file(cls, path):
+        """Read a frequency distribution from a hits_tr.dat file.
+
+        Args:
+            path: The location of the file to read.
+
+        Returns:
+            A GrowthExpandedFrequencyDistribution object.
+        """
         index = _read_growth_expanded_index(path)
         samples = np.loadtxt(path, usecols=(4, ), dtype='int', unpack=True)
 
         return cls(index=index, samples=samples)
 
     def write(self, path):
+        """Write the frequency distribution to a file.
+
+        Args:
+            path: The location of the file to write.
+        """
         _write_growth_expanded_distribution(path, self.index, self.samples,
                                             fmt=4 * ['%8d'] + ['%10d'])
 
 
 class OrderParameterFrequencyDistribution(FrequencyDistribution):
+    """The frequency distribution along an order parameter path.
+
+    Attributes:
+        index: A numpy array with the subensemble values.
+        samples: An array with the number of times each state was
+            visited in the simulation.
+    """
+
     sample_file = 'hits_op.dat'
 
     def __init__(self, index, samples):
@@ -550,27 +713,39 @@ class OrderParameterFrequencyDistribution(FrequencyDistribution):
 
     @classmethod
     def from_file(cls, path):
+        """Read a frequency distribution from a hits_op.dat file.
+
+        Args:
+            path: The location of the file to read.
+
+        Returns:
+            An OrderParameterFrequencyDistribution object.
+        """
         index, samples = np.loadtxt(path, usecols=(0, 1), dtype='int',
                                     unpack=True)
 
         return cls(index=index, samples=samples)
 
     def write(self, path):
+        """Write the frequency distribution to a file.
+
+        Args:
+            path: The location of the file to write.
+        """
         _write_order_parameter_distribution(path, self.index, self.samples,
                                             fmt=['%8d', '%10d'])
 
 
-def read_hits(path):
-    base = os.path.basename(path)
-    if 'op' in base:
-        return OrderParameterFrequencyDistribution.from_file(path)
-    elif 'tr' in base:
-        return GrowthExpandedFrequencyDistribution.from_file(path)
-    else:
-        raise NotImplementedError
-
-
 class PropertyList(object):
+    """A base class for average property lists, i.e., the data stored
+    in prop_*.dat files.
+
+    Attributes:
+        index: An array or dict describing the states in the path.
+        properties: A 2D array with the average properties along the
+        path.
+    """
+
     freq_class = None
     prop_file = None
 
@@ -580,6 +755,16 @@ class PropertyList(object):
 
     @classmethod
     def from_combination(cls, lists, frequencies):
+        """Combine a set of average property lists.
+
+        Args:
+            lists: A list of PropertyList objects to combine.
+            frequencies: A list of frequency distributions for the
+                relevant path.
+
+        Returns:
+            A PropertyList object with the combined data.
+        """
         weighted_sums = np.sum([lst * freq.samples
                                 for lst, freq in zip(lists, frequencies)],
                                axis=0)
@@ -590,6 +775,16 @@ class PropertyList(object):
 
     @classmethod
     def from_combined_runs(cls, path, runs):
+        """Combine an average property list across a series of
+        production runs.
+
+        Args:
+            path: The directory containing the production runs.
+            runs: The list of runs to combine.
+
+        Returns:
+            A PropertyList object with the combined data.
+        """
         fd = cls.freq_class
         lists = [cls.from_file(os.path.join(path, r, cls.prop_file))
                  for r in runs]
@@ -604,6 +799,15 @@ class PropertyList(object):
 
 
 class OrderParameterPropertyList(PropertyList):
+    """A list of the average energy, standard deviation of the
+    energy, etc. along the order parameter path.
+
+    Attributes:
+        index: An array with the order parameter values.
+        properties: A 2D array with the average properties along the
+        path.
+    """
+
     freq_class = OrderParameterFrequencyDistribution
     prop_file = 'prop_op.dat'
 
@@ -614,11 +818,24 @@ class OrderParameterPropertyList(PropertyList):
 
     @classmethod
     def from_file(cls, path):
+        """Read a prop_op.dat file.
+
+        Args:
+            path: The location of the file to read.
+
+        Returns:
+            An OrderParameterPropertyList object.
+        """
         raw = np.transpose(np.loadtxt(path))
 
         return cls(index=raw[0].astype('int'), properties=raw[1:])
 
     def write(self, path):
+        """Write the average properties to a file.
+
+        Args:
+            path: The location of the file to write
+        """
         fmt = ['%8d'] + len(self.properties) * ['%10.5g']
         np.savetxt(path, np.column_stack((self.index,
                                           np.tranpose(self.properties))),
@@ -626,6 +843,17 @@ class OrderParameterPropertyList(PropertyList):
 
 
 class GrowthExpandedPropertyList(PropertyList):
+    """A list of the average energy, standard deviation of the
+    energy, etc. along a growth expanded ensemble path.
+
+    Attributes:
+        index: A dict with the keys 'numbers', 'subensembles',
+            'molecules', and 'stages' describing the states in the
+            path.
+        properties: A 2D array with the average properties along the
+        path.
+    """
+
     freq_class = GrowthExpandedFrequencyDistribution
     prop_file = 'prop_tr.dat'
 
@@ -636,10 +864,23 @@ class GrowthExpandedPropertyList(PropertyList):
 
     @classmethod
     def from_file(cls, path):
+        """Read a prop_tr.dat file.
+
+        Args:
+            path: The location of the file to read.
+
+        Returns:
+            A GrowthExpandedPropertyList object.
+        """
         return cls(index=_read_growth_expanded_index(path),
                    properties=np.transpose(np.loadtxt(path))[4:])
 
     def write(self, path):
+        """Write the average properties to a file.
+
+        Args:
+            path: The location of the file to write
+        """
         ind = self.index
         fmt = 4 * ['%8d'] + len(self.properties) * ['%10.5g']
         arr = np.column_stack((ind['number'], ind['subensembles'],
@@ -659,15 +900,59 @@ def _generic_reader(op_cls, tr_cls, path):
 
 
 def read_prop(path):
+    """Read a prop_op.dat or prop_tr.dat file.
+
+    Args:
+        path: The location of the file to read.
+
+    Returns:
+        An OrderParameterPropertyList or GrowthExpandedPropertyList
+        object, based on the name of the file.
+    """
     return _generic_reader(op_cls=OrderParameterPropertyList,
                            tr_cls=GrowthExpandedPropertyList, path=path)
 
 
 def read_lnpi(path):
+    """Read an lnpi_op.dat file or an lnpi_tr.dat file.
+
+    Args:
+        path: The location of the file to read.
+
+    Returns:
+        An OrderParameterDistribution or GrowthExpandedDistribution
+        object, based on the name of the file.
+    """
     return _generic_reader(op_cls=OrderParameterDistribution,
                            tr_cls=GrowthExpandedDistribution, path=path)
 
 
 def read_pacc(path):
+    """Read a pacc_op_*.dat file or a pacc_tr_*.dat file.
+
+    Args:
+        path: The location of the file to read.
+
+    Returns:
+        An OrderParameterTransitionMatrix or
+        GrowthExpandedTransitionMatrix object, based on the name of
+        the file.
+    """
     return _generic_reader(op_cls=OrderParameterTransitionMatrix,
                            tr_cls=GrowthExpandedTransitionMatrix, path=path)
+
+
+def read_hits(path):
+    """Read a hits_op.dat or hits_tr.dat file.
+
+    Args:
+        path: The location of the file to read.
+
+    Returns:
+        An OrderParameterFrequencyDistribution or
+        GrowthExpandedFrequencyDistribution object, based on the
+        name of the file.
+    """
+    return _generic_reader(op_cls=OrderParameterFrequencyDistribution,
+                           tr_cls=GrowthExpandedFrequencyDistribution,
+                           path=path)
