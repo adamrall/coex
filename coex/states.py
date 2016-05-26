@@ -42,23 +42,11 @@ class VisitedStatesDistribution(object):
         Returns:
             The change in free energy as a float.
         """
-        shifted = self.shift(amount)
+        shifted = self._shift(amount)
 
         return np.log(sum(shifted)) - np.log(sum(self.counts))
 
-    def shift(self, amount):
-        """Transform a visited states distribution by a given amount.
-
-        This function returns the weighted counts of a distribution
-        as specified by the formula C*exp(-amount*B), where C and B
-        are the counts and bins of the distribution, respectively.
-
-        Args:
-            amount: The difference in the relevant property.
-
-        Returns:
-            A numpy array with the shifted distribution's counts.
-        """
+    def _shift(self, amount):
         return self.counts * np.exp(-amount * self.bins)
 
     def average(self, weight=None):
@@ -74,7 +62,7 @@ class VisitedStatesDistribution(object):
         if weight is None:
             return sum(self.counts * self.bins) / sum(self.counts)
 
-        shifted = self.shift(weight)
+        shifted = self._shift(weight)
 
         return sum(self.bins * shifted) / sum(shifted)
 
