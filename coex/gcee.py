@@ -16,6 +16,25 @@ from coex.states import read_all_molecule_histograms, VisitedStatesDistribution
 
 
 class Phase(object):
+    """Calculate the coexistence properties of the output of a grand
+    canonical expanded ensemble simulation.
+
+    Attributes:
+        distribution: An OrderParameterDistribution object.
+        molecule_histograms: A list of molecule number
+            VisitedStatesHistogram objects.
+        activity_fractions: A numpy array of the (chi, eta_j)
+            activity fractions of the simulation.
+        beta: An optional list of thermodynamic beta (1/kT) values,
+            for temperature expanded ensemble simulations.
+        is_vapor: A bool; True if the phase is a vapor, i.e., is
+            likely to have visited a state with zero molecules.
+        weights: The logarithm of the initial activities minus the
+            logarithm of the coexistence activities, used to
+            calculate the average number of molecules at the
+            coexistence point via histogram reweighting.
+    """
+
     def __init__(self, distribution, molecule_histograms, activity_fractions,
                  beta=None, is_vapor=False, weights=None):
         self.distribution = distribution
@@ -153,11 +172,25 @@ class Phase(object):
 
 
 def read_phase(path, is_vapor=False):
+    """Read the relevant data from an exapnded ensemble simulation
+    directory.
+
+    Args:
+        path: The directory containing the data.
+        is_vapor: A boolean denoting whether the phase is a vapor.
+
+    Returns:
+        A Phase object with the data contained in the given
+        directory.
+    """
     return Phase.from_directory(path, is_vapor)
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     """Find the coexistence point of two liquid phases.
+
+    Note that the two phases must already be shifted to their
+    appropriate reference points.
 
     Args:
         first: A Phase object with data for the first phase.
@@ -167,10 +200,6 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
 
     Returns:
         A tuple with the two Phase objects at coexistence.
-
-    Notes:
-        The two phases must already be shifted to their appropriate
-        reference points.
     """
     fst = first.copy()
     snd = second.copy()
