@@ -59,7 +59,7 @@ def fractions_to_activities(fractions, one_subensemble=False):
     return activities
 
 
-def read_activity_fractions(path):
+def read_zz(path):
     """Read the activity fractions of an AFEE simulation.
 
     Args:
@@ -76,7 +76,7 @@ def read_activity_fractions(path):
     return np.transpose(np.loadtxt(path))[1:]
 
 
-def read_tee_activity_fractions(path):
+def read_bz(path):
     """Read the activity fractions and beta values of a TEE simulation.
 
     Args:
