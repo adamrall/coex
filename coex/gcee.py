@@ -164,8 +164,8 @@ class Phase(object):
             A numpy array with the number of molecules of each species
             in each subensemble.
         """
-        return np.array([h.average(self.weights[i])
-                         for i, h in enumerate(self.nhists[1:])])
+        return np.array([h.average(w)
+                         for h, w in zip(self.nhists[1:], self.weights)])
 
 
 def read_phase(path, is_vapor=False):
