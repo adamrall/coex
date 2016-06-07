@@ -10,64 +10,64 @@ from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.probability import read_lnpi
-from coex.histogram import read_all_molecule_histograms
+from coex.histogram import read_all_nhists
 
 
 class Simulation(object):
-    """Calculate the coexistence properties of the output from a
-    direct grand canonical simulation.
+    """Calculate the coexistence properties of the output from a direct
+    grand canonical simulation.
 
     Attributes:
-        distribution: An OrderParameterDistribution object.
-        molecule_histograms: A list of molecule number
-            VisitedStatesHistogram objects.
-        activity_fractions: A 2D numpy array with the activity
-            fractions (chi, eta_j) of the simulation.
+        dist: An OrderParameterDistribution object.
+        nhists: A list of molecule number VisitedStatesHistogram
+            objects.
+        fractions: A 2D numpy array with the activity fractions
+           (chi, eta_j) of the simulation.
         weights: The logarithm of the initial activities minus the
-            logarithm of the coexistence activities, used to
-            calculate the average number of molecules at the
-            coexistence point via histogram reweighting.
+            logarithm of the coexistence activities, used to calculate
+            the average number of molecules at the coexistence point
+            via histogram reweighting.
     """
 
-    def __init__(self, distribution, molecule_histograms, activity_fractions,
+    def __init__(self, dist, nhists, fractions,
                  weights=None):
-        self.distribution = distribution
-        self.molecule_histograms = molecule_histograms
-        self.activities = fractions_to_activities(activity_fractions,
+        self.dist = dist
+        self.nhists = nhists
+        self.activities = fractions_to_activities(fractions,
                                                   one_subensemble=True)
         self.weights = weights
         if weights is None:
-            self.weights = np.tile(None, len(molecule_histograms) - 1)
+            self.weights = np.tile(None, len(nhists) - 1)
 
     @classmethod
-    def from_directory(cls, path, activity_fractions):
+    def from_directory(cls, path, fractions):
         """Read the relevant data from a simulation directory.
 
         Args:
             path: The directory containing the data.
-            activity_fractions: The activity fractions (chi, eta_j) of
-                the simulation.
+            fractions: The activity fractions (chi, eta_j) of the
+                simulation.
 
         Returns:
             A dict with the order parameter, logarithm of the
-            probability distribution, and molecule number visited states
-            histograms.
+            probability distribution, and molecule number visited
+            states histograms.
         """
         dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
-        nhists = read_all_molecule_histograms(path)
+        nhists = read_all_nhists(path)
 
-        return cls(distribution=dist, molecule_histograms=nhists,
-                   activity_fractions=activity_fractions)
+        return cls(dist=dist, molecule_histograms=nhists,
+                   fractions=fractions)
 
     def get_composition(self):
         """Calculate the average composition of each phase in the
         simulation.
 
         Returns:
-            A (vapor, liquid) tuple of numpy arrays, each containing
-            the mole fraction of each species.
+            A (vapor, liquid) tuple of numpy arrays, each containing the
+            mole fraction of each species.
         """
-        size = len(self.distribution)
+        size = len(self.dist)
         if len(self.molecule_histograms) < 3:
             return np.tile(1.0, size), np.tile(1.0, size)
 
@@ -85,7 +85,7 @@ class Simulation(object):
         Returns:
             A float containing the grand potential.
         """
-        prob = np.exp(self.distribution.log_probabilities)
+        prob = np.exp(self.dist.log_probs)
         prob /= sum(prob)
 
         return np.log(prob[0] * 2.0)
@@ -101,7 +101,7 @@ class Simulation(object):
             A (vapor, liquid) tuple of numpy arrays, each containing
             the average number of molecules of each species.
         """
-        bound = int(split * len(self.distribution))
+        bound = int(split * len(self.dist))
         nhists = self.molecule_histograms
 
         def average_phase(hist, weight, phase):
@@ -127,13 +127,13 @@ class Simulation(object):
             A new Simulation object at the coexistence point.
         """
         def objective(x):
-            vapor, liquid = self.distribution.transform(x).split()
+            vapor, liquid = self.dist.transform(x).split()
 
-            return np.abs(sum(np.exp(vapor.log_probabilities)) -
-                          sum(np.exp(liquid.log_probabilities)))
+            return np.abs(sum(np.exp(vapor.log_probs)) -
+                          sum(np.exp(liquid.log_probs)))
 
         solution = fsolve(objective, x0=x0, maxfev=10000)
-        dist = self.distribution.transform(solution)
+        dist = self.dist.transform(solution)
         if species == 0:
             frac = activities_to_fractions(self.activities,
                                            one_subensemble=True)
@@ -147,8 +147,8 @@ class Simulation(object):
         weights = np.nan_to_num(np.log(self.activities) - np.log(act))
         nhists = copy.copy(self.molecule_histograms)
 
-        return Simulation(distribution=dist, molecule_histograms=nhists,
-                          activity_fractions=frac, weights=weights)
+        return Simulation(dist=dist, molecule_histograms=nhists,
+                          fractions=frac, weights=weights)
 
 
 def get_coexistence(sim, species, x0=-0.001):
@@ -164,6 +164,6 @@ def get_coexistence(sim, species, x0=-0.001):
     return sim.get_coexistence(species, x0)
 
 
-def read_simulation(path, activity_fractions):
+def read_simulation(path, fractions):
     """Read the data from a simulation directory."""
-    return Simulation.from_directory(path, activity_fractions)
+    return Simulation.from_directory(path, fractions)

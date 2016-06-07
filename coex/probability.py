@@ -1,5 +1,5 @@
-"""Objects and functions for working with probability distributions
-and related properties.
+"""Objects and functions for working with probability distributions and
+related properties.
 
 Internally, we often deal with the logarithm of the probability
 distribution along a path of interest instead of the free energy
@@ -7,12 +7,13 @@ differences, which differ only by a minus sign.
 
 In gchybrid, we refer to the logarithm of the order parameter
 distribution as lnpi_op.dat, the logarithm of the growth expanded
-ensemble distribution as lnpi_tr.dat, the logarithm of the exchange
-path distribution as lnpi_ex.dat, and the logarithm of the regrowth
-path distribution as lnpi_rg.dat.  Similarly, the number of samples
-and other properties along each path are contained in the files
-hits_*.dat and prop_*.dat, respectively, where the * matches the
-appropriate two-letter suffix.
+ensemble distribution as lnpi_tr.dat, the logarithm of the exchange path
+distribution as lnpi_ex.dat, and the logarithm of the regrowth path
+distribution as lnpi_rg.dat.  Similarly, the number of samples and other
+properties along each path are contained in the files hits_*.dat and
+prop_*.dat, respectively, where the * matches the appropriate two-letter
+suffix.
+
 """
 
 import copy
@@ -27,28 +28,27 @@ class TransitionMatrix(object):
     Attributes:
         index: A numpy array or dict describing the states in the
             matrix.
-        forward_attempts: An array with the number of forward
-            transition attempts for each state.
-        reverse_attempts: An array with the number of reverse
-            transition attempts for each state.
-        forward_probabilities: An array with the acceptance
-            probability for forward transitions from each state.
-        reverse_probabilites: An array with the acceptance
-            probability for forward transitions from each state.
+        fw_atts: An array with the number of forward transition attempts
+            for each state.
+        rev_atts: An array with the number of reverse transition
+            attempts for each state.
+        fw_probs: An array with the acceptance probability for forward
+            transitions from each state.
+        rev_probs: An array with the acceptance probability for forward
+            transitions from each state.
     """
 
     matrix_file = None
 
-    def __init__(self, index, forward_attempts, reverse_attempts,
-                 forward_probabilities, reverse_probabilities):
+    def __init__(self, index, fw_atts, rev_atts, fw_probs, rev_probs):
         self.index = index
-        self.forward_attempts = forward_attempts
-        self.reverse_attempts = reverse_attempts
-        self.forward_probabilities = forward_probabilities
-        self.reverse_probabilities = reverse_probabilities
+        self.fw_atts = fw_atts
+        self.rev_atts = rev_atts
+        self.fw_probs = fw_probs
+        self.rev_probs = rev_probs
 
     def __len__(self):
-        return len(self.forward_attempts)
+        return len(self.fw_atts)
 
     @classmethod
     def from_combination(cls, matrices):
@@ -61,17 +61,14 @@ class TransitionMatrix(object):
             A TransitionMatrix object with the combined data.
         """
         index = matrices[0].index
-        fw_att = sum([m.forward_attempts for m in matrices])
-        rev_att = sum([m.reverse_attempts for m in matrices])
-        fw_prob = sum([m.forward_attempts * m.forward_probabilities
-                       for m in matrices]) / fw_att
-        rev_prob = sum([m.reverse_attempts * m.reverse_probabilities
-                        for m in matrices]) / rev_att
-        fw_prob, rev_prob = np.nan_to_num(fw_prob), np.nan_to_num(rev_prob)
+        fw_atts = sum(m.fw_atts for m in matrices)
+        rev_atts = sum(m.rev_atts for m in matrices)
+        fw_probs = sum(m.fw_atts * m.fw_probs for m in matrices) / fw_atts
+        rev_probs = sum(m.rev_atts * m.rev_probs for m in matrices) / rev_atts
+        fw_probs, rev_probs = np.nan_to_num(fw_probs), np.nan_to_num(rev_probs)
 
-        return cls(
-            index=index, forward_attempts=fw_att, reverse_attempts=rev_att,
-            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
+        return cls(index=index, fw_atts=fw_atts, rev_atts=rev_atts,
+                   fw_probs=fw_probs, rev_probs=rev_probs)
 
     @classmethod
     def from_combined_runs(cls, path, runs):
@@ -85,8 +82,8 @@ class TransitionMatrix(object):
             A TransitionMatrix object with the combined data.
         """
         return cls.from_combination(
-            [cls.from_file(os.path.join(path, r, cls.matrix_file))
-             for r in runs])
+            cls.from_file(os.path.join(path, r, cls.matrix_file))
+            for r in runs)
 
     @classmethod
     def from_file(cls, path):
@@ -110,7 +107,7 @@ class TransitionMatrix(object):
             A boolean numpy array, where True denotes states which
             don't meet the sampling quality threshold.
         """
-        fw, rev = self.forward_attempts, self.reverse_attempts
+        fw, rev = self.fw_atts, self.rev_atts
         avg = np.mean([min(a, rev[i + 1]) for i, a in enumerate(fw[:-1])])
 
         drop = np.tile(False, len(fw))
@@ -138,23 +135,21 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
         index: A dict with the keys 'numbers', 'subensembles',
             'molecules', and 'stages' describing the states in the
             matrix.
-        forward_attempts: An array with the number of forward
-            transition attempts for each state.
-        reverse_attempts: An array with the number of reverse
-            transition attempts for each state.
-        forward_probabilities: An array with the acceptance
-            probability for forward transitions from each state.
-        reverse_probabilites: An array with the acceptance
-            probability for forward transitions from each state.
+        fw_atts: An array with the number of forward transition attempts
+            for each state.
+        rev_atts: An array with the number of reverse transition
+            attempts for each state.
+        fw_probs: An array with the acceptance probability for forward
+            transitions from each state.
+        rev_probs: An array with the acceptance probability for forward
+            transitions from each state.
     """
 
     matrix_file = 'pacc_tr_cr.dat'
 
-    def __init__(self, index, forward_attempts, reverse_attempts,
-                 forward_probabilities, reverse_probabilities):
+    def __init__(self, index, fw_atts, rev_atts, fw_probs, rev_probs):
         super(GrowthExpandedTransitionMatrix, self).__init__(
-            index, forward_attempts, reverse_attempts, forward_probabilities,
-            reverse_probabilities)
+            index, fw_atts, rev_atts, fw_probs, rev_probs)
 
     def calculate_distribution(self, guess=None, min_attempts=1):
         """Compute the logarithm of the growth expanded ensemble
@@ -174,9 +169,9 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
         if guess is None:
             guess = np.copy(dist)
 
-        fw_att, rev_att = self.forward_attempts, self.reverse_attempts
-        fw_prob = self.forward_probabilities
-        rev_prob = self.reverse_probabilities
+        fw_att, rev_att = self.fw_atts, self.rev_atts
+        fw_prob = self.fw_probs
+        rev_prob = self.rev_probs
         ind = self.index
         mol, sub, stages = ind['molecules'], ind['subensembles'], ind['stages']
         for m in np.unique(mol):
@@ -194,7 +189,7 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
                             fw_prob[cs] > 0.0 and rev_prob[ns] > 0.0):
                         dist[cs] -= np.log(fw_prob[cs] / rev_prob[ns])
 
-        return GrowthExpandedDistribution(index=ind, log_probabilities=dist)
+        return GrowthExpandedDistribution(index=ind, log_probs=dist)
 
     @classmethod
     def from_file(cls, path):
@@ -208,13 +203,12 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
             A GrowthExpandedTransitionMatrix object.
         """
         index = _read_growth_expanded_index(path)
-        fw_att, rev_att, fw_prob, rev_prob = np.loadtxt(
+        fw_atts, rev_atts, fw_probs, rev_probs = np.loadtxt(
             path, usecols=(4, 5, 6, 7), unpack=True)
 
-        return cls(
-            index, forward_attempts=fw_att.astype('int'),
-            reverse_attempts=rev_att.astype('int'),
-            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
+        return cls(index, fw_atts=fw_atts.astype('int'),
+                   rev_atts=rev_atts.astype('int'), fw_probs=fw_probs,
+                   rev_probs=rev_probs)
 
     def write(self, path):
         """Write the transition matrix to a file.
@@ -225,10 +219,8 @@ class GrowthExpandedTransitionMatrix(TransitionMatrix):
         ind = self.index
         fmt = 6 * ['%8d'] + 2 * ['%10.5g']
         arr = np.column_stack((ind['number'], ind['subensembles'],
-                               ind['molecules'], ind['stages'],
-                               self.forward_attempts, self.reverse_attempts,
-                               self.forward_probabilities,
-                               self.reverse_probabilities))
+                               ind['molecules'], ind['stages'], self.fw_atts,
+                               self.rev_atts, self.fw_probs, self.rev_probs))
         np.savetxt(path, arr, fmt=fmt, delimiter=' ')
 
 
@@ -237,23 +229,21 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
 
     Attributes:
         index: An array with the subensemble numbers.
-        forward_attempts: An array with the number of forward
-            transition attempts for each state.
-        reverse_attempts: An array with the number of reverse
-            transition attempts for each state.
-        forward_probabilities: An array with the acceptance
-            probability for forward transitions from each state.
-        reverse_probabilites: An array with the acceptance
-            probability for forward transitions from each state.
+        fw_atts: An array with the number of forward transition attempts
+            for each state.
+        rev_atts: An array with the number of reverse transition
+            attempts for each state.
+        fw_probs: An array with the acceptance probability for forward
+            transitions from each state.
+        rev_probs: An array with the acceptance probability for forward
+            transitions from each state.
     """
 
     matrix_file = 'pacc_op_cr.dat'
 
-    def __init__(self, index, forward_attempts, reverse_attempts,
-                 forward_probabilities, reverse_probabilities):
+    def __init__(self, index, fw_atts, rev_atts, fw_probs, rev_probs):
         super(OrderParameterTransitionMatrix, self).__init__(
-            index, forward_attempts, reverse_attempts, forward_probabilities,
-            reverse_probabilities)
+            index, fw_atts, rev_atts, fw_probs, rev_probs)
 
     def calculate_distribution(self, guess=None, min_attempts=1):
         """Compute the logarithm of the order parameter probability
@@ -275,15 +265,15 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
 
         for i, dc in enumerate(np.diff(guess)):
             dist[i + 1] = dist[i] + dc
-            fw_prob = self.forward_probabilities[i]
-            rev_prob = self.reverse_probabilities[i + 1]
-            if (self.forward_attempts[i] > min_attempts and
-                    self.reverse_attempts[i + 1] > min_attempts and
+            fw_prob = self.fw_probs[i]
+            rev_prob = self.rev_probs[i + 1]
+            if (self.fw_atts[i] > min_attempts and
+                    self.rev_atts[i + 1] > min_attempts and
                     fw_prob > 0.0 and rev_prob > 0.0):
                 dist[i + 1] += np.log(fw_prob / rev_prob)
 
         return OrderParameterDistribution(index=self.index,
-                                          log_probabilities=dist)
+                                          log_probs=dist)
 
     @classmethod
     def from_file(cls, path):
@@ -295,14 +285,14 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
 
         Returns:
             A TransitionMatrix object.
+
         """
         raw = np.loadtxt(path, usecols=(0, 1, 2, 3, 4)).transpose()
-        index, fw_att, rev_att = [c.astype('int') for c in raw[:3]]
-        fw_prob, rev_prob = raw[3:]
+        index, fw_atts, rev_atts = [c.astype('int') for c in raw[:3]]
+        fw_probs, rev_probs = raw[3:]
 
-        return cls(
-            index, forward_attempts=fw_att, reverse_attempts=rev_att,
-            forward_probabilities=fw_prob, reverse_probabilities=rev_prob)
+        return cls(index, fw_atts=fw_atts, rev_atts=rev_atts,
+                   fw_probs=fw_probs, rev_probs=rev_probs)
 
     def write(self, path):
         """Write the transition matrix to a file.
@@ -311,29 +301,25 @@ class OrderParameterTransitionMatrix(TransitionMatrix):
             path: The location of the file to write.
         """
         fmt = 3 * ['%8d'] + 2 * ['%10.5g']
-        arr = np.column_stack(
-            (self.index, self.forward_attempts, self.reverse_attempts,
-             self.forward_probabilities, self.reverse_probabilities))
+        arr = np.column_stack((self.index, self.fw_atts, self.rev_atts,
+                               self.fw_probs, self.rev_probs))
         np.savetxt(path, arr, fmt=fmt)
 
 
-def _write_growth_expanded_distribution(path, index, probabilities,
-                                        fmt=None):
+def _write_growth_expanded_distribution(path, index, probs, fmt=None):
     if fmt is None:
         fmt = 4 * ['%8d'] + ['%10.5g']
 
     arr = np.column_stack((index['numbers'], index['subensembles'],
-                           index['molecules'], index['stages'],
-                           probabilities))
+                           index['molecules'], index['stages'], probs))
     np.savetxt(path, arr, fmt=fmt)
 
 
-def _write_order_parameter_distribution(path, index, probabilities,
-                                        fmt=None):
+def _write_order_parameter_distribution(path, index, probs, fmt=None):
     if fmt is None:
         fmt = ['%8d', '%10.5g']
 
-    np.savetxt(path, np.column_stack((index, probabilities)), fmt=fmt)
+    np.savetxt(path, np.column_stack((index, probs)), fmt=fmt)
 
 
 class Distribution(object):
@@ -342,57 +328,57 @@ class Distribution(object):
     Attributes:
         index: A numpy array or dict describing the states in the
             distribution's path.
-        log_probabilities: An array with the logarithm of the
+        log_probs: An array with the logarithm of the
             probability distribution.
     """
 
-    def __init__(self, index, log_probabilities):
+    def __init__(self, index, log_probs):
         self.index = index
-        self.log_probabilities = log_probabilities
+        self.log_probs = log_probs
 
     def __add__(self, other):
         if isinstance(other, Distribution):
-            return self.log_probabilities + other.log_probabilities
+            return self.log_probs + other.log_probs
         elif isinstance(other, (np.ndarray, int, float)):
-            return self.log_probabilities + other
+            return self.log_probs + other
         else:
             return NotImplemented
 
     def __sub__(self, other):
         if isinstance(other, Distribution):
-            return self.log_probabilities - other.log_probabilities
+            return self.log_probs - other.log_probs
         elif isinstance(other, (np.ndarray, int, float)):
-            return self.log_probabilities - other
+            return self.log_probs - other
         else:
             return NotImplemented
 
     def __mul__(self, other):
         if isinstance(other, Distribution):
-            return self.log_probabilities * other.log_probabilities
+            return self.log_probs * other.log_probs
         elif isinstance(other, (np.ndarray, int, float)):
-            return self.log_probabilities * other
+            return self.log_probs * other
         else:
             return NotImplemented
 
     def __div__(self, other):
         if isinstance(other, Distribution):
-            return self.log_probabilities / other.log_probabilities
+            return self.log_probs / other.log_probs
         elif isinstance(other, (np.ndarray, int, float)):
-            return self.log_probabilities / other
+            return self.log_probs / other
         else:
             return NotImplemented
 
     def __len__(self):
-        return len(self.log_probabilities)
+        return len(self.log_probs)
 
     def __getitem__(self, i):
-        return self.log_probabilities[i]
+        return self.log_probs[i]
 
     def __setitem__(self, i, value):
-        self.log_probabilities[i] = value
+        self.log_probs[i] = value
 
     def __iter__(self):
-        for p in self.log_probabilities:
+        for p in self.log_probs:
             yield p
 
 
@@ -402,20 +388,18 @@ class GrowthExpandedDistribution(Distribution):
 
     Attributes:
         index: A dict with the keys 'numbers', 'subensembles',
-            'molecules', and 'stages' describing the states in the
-            path.
-        log_probabilities: A numpy array with the logarithm of the
-            probability distribution.
+            'molecules', and 'stages' describing the states in the path.
+        log_probs: A numpy array with the logarithm of the probability
+            distribution.
     """
 
-    def __init__(self, index, log_probabilities):
-        super(GrowthExpandedDistribution, self).__init__(index,
-                                                         log_probabilities)
+    def __init__(self, index, log_probs):
+        super(GrowthExpandedDistribution, self).__init__(index, log_probs)
 
     @classmethod
     def from_file(cls, path):
-        """Read the logarithm of the growth expanded ensemble probability
-        distribution from an lnpi_tr.dat file.
+        """Read the logarithm of the growth expanded ensemble
+        probability distribution from an lnpi_tr.dat file.
 
         Args:
             path: The location of the file.
@@ -426,12 +410,11 @@ class GrowthExpandedDistribution(Distribution):
         index = _read_growth_expanded_index(path)
         logp = np.loadtxt(path, usecols=(4, ))
 
-        return cls(index=index, log_probabilities=logp)
+        return cls(index=index, log_probs=logp)
 
     def smooth(self, order, drop=None):
         """Perform curve fitting on the growth expanded ensemble free
-        energy differences to produce a new estimate of the free
-        energy.
+        energy differences to produce a new estimate of the free energy.
 
         Args:
             order: The order of the polynomial used to fit the free
@@ -440,9 +423,9 @@ class GrowthExpandedDistribution(Distribution):
                 entry prior to fitting.
 
         Returns:
-            A dict containing the index, molecule number, stage
-            number, and new estimate for the free energy of each entry
-            in the expanded ensemble growth path.
+            A dict containing the index, molecule number, stage number,
+            and new estimate for the free energy of each entry in the
+            expanded ensemble growth path.
         """
         size = len(self)
         ind = self.index
@@ -475,7 +458,7 @@ class GrowthExpandedDistribution(Distribution):
                     dist[curr_stage] = dist[next_stage] - fit[curr_stage]
 
         smoothed = copy.copy(self)
-        smoothed.log_probabilities = dist
+        smoothed.log_probs = dist
 
         return smoothed
 
@@ -486,7 +469,7 @@ class GrowthExpandedDistribution(Distribution):
             path: The file to write.
         """
         _write_growth_expanded_distribution(path, self.index,
-                                            self.log_probabilities)
+                                            self.log_probs)
 
 
 class OrderParameterDistribution(Distribution):
@@ -495,13 +478,12 @@ class OrderParameterDistribution(Distribution):
 
     Attributes:
         index: A numpy array with the list of order parameter values.
-        log_probabilities: A numpy array with the logarithm of the
+        log_probs: A numpy array with the logarithm of the
             probability distribution.
     """
 
-    def __init__(self, index, log_probabilities):
-        super(OrderParameterDistribution, self).__init__(index,
-                                                         log_probabilities)
+    def __init__(self, index, log_probs):
+        super(OrderParameterDistribution, self).__init__(index, log_probs)
 
     @classmethod
     def from_file(cls, path):
@@ -514,11 +496,9 @@ class OrderParameterDistribution(Distribution):
         Returns:
             An OrderParameterDistribution object.
         """
-        index, log_probabilities = np.loadtxt(path, usecols=(0, 1),
-                                              unpack=True)
+        index, log_probs = np.loadtxt(path, usecols=(0, 1), unpack=True)
 
-        return cls(index=index.astype('int'),
-                   log_probabilities=log_probabilities)
+        return cls(index=index.astype('int'), log_probs=log_probs)
 
     def smooth(self, order, drop=None):
         """Perform curve fitting on the free energy differences to
@@ -531,8 +511,8 @@ class OrderParameterDistribution(Distribution):
                 subensemble prior to fitting.
 
         Returns:
-            A dict containing the subensemble index and the new
-            estimate for the free energy of the order parameter path.
+            A dict containing the subensemble index and the new estimate
+            for the free energy of the order parameter path.
         """
         if drop is None:
             drop = np.tile(False, len(self) - 1)
@@ -542,21 +522,20 @@ class OrderParameterDistribution(Distribution):
         p = np.poly1d(np.polyfit(x[:-1], y, order))
         smoothed = np.append(0.0, np.cumsum(p(self.index[1:])))
 
-        return OrderParameterDistribution(index=self.index,
-                                          log_probabilities=smoothed)
+        return OrderParameterDistribution(index=self.index, log_probs=smoothed)
 
     def split(self, split=0.5):
         """Split a distribution into two parts.
 
         Args:
-            split: The fraction of the length to use as the boundary
-                for the two parts.
+            split: The fraction of the length to use as the boundary for
+                the two parts.
 
         Returns:
             A tuple of OrderParameterDistribution objects.
         """
         bound = int(split * len(self))
-        ind, logp = self.index, self.log_probabilities
+        ind, logp = self.index, self.log_probs
         fst = OrderParameterDistribution(ind[:bound], logp[:bound])
         snd = OrderParameterDistribution(ind[bound:], logp[bound:])
 
@@ -574,10 +553,10 @@ class OrderParameterDistribution(Distribution):
             A new OrderParameterDistribution with transformed log
             probabilities.
         """
-        transformed = self.log_probabilities + amount * self.index
+        transformed = self.log_probs + amount * self.index
 
         return OrderParameterDistribution(index=self.index,
-                                          log_probabilities=transformed)
+                                          log_probs=transformed)
 
     def write(self, path):
         """Write the new free energy to a file.
@@ -585,8 +564,7 @@ class OrderParameterDistribution(Distribution):
         Args:
             path: The file to write.
         """
-        _write_order_parameter_distribution(path, self.index,
-                                            self.log_probabilities)
+        _write_order_parameter_distribution(path, self.index, self.log_probs)
 
 
 class FrequencyDistribution(object):
@@ -620,12 +598,11 @@ class FrequencyDistribution(object):
         """Combine a list of frequency distributions.
 
         Args:
-            distributions: The list of FrequencyDistribution objects
-                to combine.
+            distributions: The list of FrequencyDistribution objects to
+                combine.
 
         Returns:
-            A new FrequencyDistribution object with the combined
-            data.
+            A new FrequencyDistribution object with the combined data.
         """
         index = distributions[0].index
         samples = sum([d.samples for d in distributions])
@@ -654,13 +631,11 @@ class FrequencyDistribution(object):
 
 
 class GrowthExpandedFrequencyDistribution(FrequencyDistribution):
-    """The frequency distribution along a growth expanded ensemble
-    path.
+    """The frequency distribution along a growth expanded ensemble path.
 
     Attributes:
         index: A dict with the keys 'numbers', 'subensembles',
-            'molecules', and 'stages' describing the states in the
-            path.
+            'molecules', and 'stages' describing the states in the path.
         samples: An array with the number of times each state was
             visited in the simulation.
     """
@@ -743,7 +718,7 @@ class PropertyList(object):
     Attributes:
         index: An array or dict describing the states in the path.
         properties: A 2D array with the average properties along the
-        path.
+            path.
     """
 
     freq_class = None
@@ -799,13 +774,13 @@ class PropertyList(object):
 
 
 class OrderParameterPropertyList(PropertyList):
-    """A list of the average energy, standard deviation of the
-    energy, etc. along the order parameter path.
+    """A list of the average energy, standard deviation of the energy,
+    etc. along the order parameter path.
 
     Attributes:
         index: An array with the order parameter values.
         properties: A 2D array with the average properties along the
-        path.
+            path.
     """
 
     freq_class = OrderParameterFrequencyDistribution
@@ -848,10 +823,9 @@ class GrowthExpandedPropertyList(PropertyList):
 
     Attributes:
         index: A dict with the keys 'numbers', 'subensembles',
-            'molecules', and 'stages' describing the states in the
-            path.
+            'molecules', and 'stages' describing the states in the path.
         properties: A 2D array with the average properties along the
-        path.
+            path.
     """
 
     freq_class = GrowthExpandedFrequencyDistribution

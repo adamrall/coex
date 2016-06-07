@@ -11,8 +11,7 @@ from scipy.optimize import fsolve
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.activity import read_bz, read_zz
 from coex.probability import read_lnpi
-from coex.histogram import read_all_molecule_histograms
-from coex.hsitogram import VisitedStatesDistribution
+from coex.histogram import read_all_nhists, VisitedStatesDistribution
 
 
 class Phase(object):
@@ -20,26 +19,26 @@ class Phase(object):
     canonical expanded ensemble simulation.
 
     Attributes:
-        distribution: An OrderParameterDistribution object.
-        molecule_histograms: A list of molecule number
-            VisitedStatesHistogram objects.
-        activity_fractions: A numpy array of the (chi, eta_j)
-            activity fractions of the simulation.
+        dist: An OrderParameterDistribution object.
+        nhists: A list of molecule number VisitedStatesHistogram
+            objects.
+        fractions: A numpy array of the (chi, eta_j) activity
+            fractions of the simulation.
         beta: An optional list of thermodynamic beta (1/kT) values,
             for temperature expanded ensemble simulations.
         is_vapor: A bool; True if the phase is a vapor, i.e., is
             likely to have visited a state with zero molecules.
         weights: The logarithm of the initial activities minus the
-            logarithm of the coexistence activities, used to
-            calculate the average number of molecules at the
-            coexistence point via histogram reweighting.
+            logarithm of the coexistence activities, used to calculate
+            the average number of molecules at the coexistence point
+            via histogram reweighting.
     """
 
-    def __init__(self, distribution, molecule_histograms, activity_fractions,
-                 beta=None, is_vapor=False, weights=None):
-        self.distribution = distribution
-        self.molecule_histograms = molecule_histograms
-        self.activities = fractions_to_activities(activity_fractions)
+    def __init__(self, dist, nhists, fractions, beta=None, is_vapor=False,
+                 weights=None):
+        self.dist = dist
+        self.nhists = nhists
+        self.activities = fractions_to_activities(fractions)
         self.beta = beta
         self.is_vapor = is_vapor
         self.weights = weights
@@ -59,7 +58,7 @@ class Phase(object):
             directory.
         """
         dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
-        nhists = read_all_molecule_histograms(path)
+        nhists = read_all_nhists(path)
         beta = None
         try:
             bz = read_bz(os.path.join(path, 'bz.dat'))
@@ -68,8 +67,7 @@ class Phase(object):
         except FileNotFoundError:
             fractions = read_zz(os.path.join(path, 'zz.dat'))
 
-        return cls(distribution=dist, molecule_histograms=nhists,
-                   activity_fractions=fractions, beta=beta)
+        return cls(dist=dist, nhists=nhists, fractions=fractions, beta=beta)
 
     def shift_to_reference(self, index, fractions, beta=None,
                            energy_histogram_path=None):
@@ -88,7 +86,7 @@ class Phase(object):
         """
         shifted = copy.copy(self)
         shifted.index = index
-        logp = shifted.distribution.log_probabilities
+        logp = shifted.dist.log_probs
         if beta is not None:
             energy = VisitedStatesDistribution.from_file(energy_histogram_path,
                                                          index)
@@ -100,7 +98,7 @@ class Phase(object):
         act = self.activities
         ratios = np.nan_to_num(np.log(act[:, index]) - np.log(ref_act))
         shifted.activities[:, index] = ref_act
-        for nh, r in zip(shifted.molecule_histograms[1:], ratios):
+        for nh, r in zip(shifted.nhists[1:], ratios):
             logp[index] += nh[index].reweight(r)
 
         return shifted
@@ -112,8 +110,8 @@ class Phase(object):
             A numpy array with the mole fraction of each species in each
             subensemble.
         """
-        if len(self.molecule_histograms) < 3:
-            return np.tile(1.0, len(self.distribution))
+        if len(self.nhists) < 3:
+            return np.tile(1.0, len(self.dist))
 
         nm = self.get_average_n()
 
@@ -132,13 +130,13 @@ class Phase(object):
         Returns:
             A numpy array with the grand potential of each subensemble.
         """
-        lnpi = self.distribution.log_probabilities
+        lnpi = self.dist.log_probs
         if not self.is_vapor:
             return -lnpi
 
         gp = np.zeros(len(lnpi))
         iter_range = range(len(gp))
-        nhist = self.molecule_histograms[0]
+        nhist = self.nhists[0]
         # Reverse the order of traversal for TEE: the subensembles
         # more likely to sample N=0 are at high beta (low T).
         if self.beta is not None:
@@ -167,7 +165,7 @@ class Phase(object):
             in each subensemble.
         """
         return np.array([h.average(self.weights[i])
-                         for i, h in enumerate(self.molecule_histograms[1:])])
+                         for i, h in enumerate(self.nhists[1:])])
 
 
 def read_phase(path, is_vapor=False):
@@ -206,15 +204,14 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
         idx = p.index
         assert idx is not None, \
             'Phases must be shifted to their reference points.'
-        logp = p.distribution.log_probabilities
+        logp = p.dist.log_probs
         logp -= logp[idx] + grand_potential
 
     return _get_two_phase_coexistence(fst, snd, species)
 
 
 def get_liquid_vapor_coexistence(liquid, vapor, species):
-    """Find the coexistence point of a liquid phase and a vapor
-    phase.
+    """Find the coexistence point of a liquid phase and a vapor phase.
 
     Args:
         liquid: A Phase object with the liquid data.
@@ -231,8 +228,8 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
     liq = liquid.copy()
     vap = vapor.copy()
     assert vap.is_vapor
-    vap_logp = vap.distribution.log_probabilities
-    liq_logp = liq.distribution.log_probabilities
+    vap_logp = vap.dist.log_probs
+    liq_logp = liq.dist.log_probs
     vap_logp = -vap.get_grand_potential()
     liq_idx, vap_idx = liq.index, vap.index
     assert liq_idx is not None and vap_idx is not None, \
@@ -261,10 +258,10 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         The first and second phases must already be shifted to their
         appropriate reference points.
     """
-    first_logp = first.distribution.log_probabilities
-    first_nhist = first.molecule_histograms[species]
-    second_logp = second.distribution.log_probabilities
-    second_nhist = second.molecule_histograms[species]
+    fst_logp = first.dist.log_probs
+    fst_nhist = first.nhists[species]
+    snd_logp = second.dist.log_probs
+    snd_nhist = second.nhists[species]
     init_act = np.copy(first.activities)
     if species == 0:
         frac = activities_to_fractions(first.activities)
@@ -272,16 +269,16 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         coex_act = np.copy(first.activities)
 
     def objective(x, j):
-        return np.abs(first_logp[j] + first_nhist[j].reweight(x) -
-                      second_logp[j] - second_nhist[j].reweight(x))
+        return np.abs(fst_logp[j] + fst_nhist[j].reweight(x) -
+                      snd_logp[j] - snd_nhist[j].reweight(x))
 
-    for i in range(len(first_logp)):
+    for i in range(len(fst_logp)):
         if i == first.index or i == second.index:
             continue
 
         solution = fsolve(objective, x0=x0, args=(i, ))
-        first_logp[i] += first_nhist[i].reweight(solution)
-        second_logp[i] += second_nhist[i].reweight(solution)
+        fst_logp[i] += fst_nhist[i].reweight(solution)
+        snd_logp[i] += snd_nhist[i].reweight(solution)
 
         if species == 0:
             frac[0, i] -= solution

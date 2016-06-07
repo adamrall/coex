@@ -3,8 +3,8 @@ distributions.
 
 Visited states distributions are used to find the change in free
 energy via histogram reweighting. For example, an energy visited
-states distribution would provide a new free energy given a change
-in the thermodynamic beta (1/kT).
+states distribution would provide a new free energy given a change in
+the thermodynamic beta (1/kT).
 """
 
 import copy
@@ -42,8 +42,7 @@ class VisitedStatesDistribution(object):
         return str(self)
 
     def reweight(self, amount):
-        """Get the change in free energy due to histogram
-        reweighting.
+        """Get the change in free energy due to histogram reweighting.
 
         Args:
             amount: The difference in the relevant property.
@@ -99,25 +98,25 @@ def _get_limits_path(hist_file):
 
 
 class VisitedStatesHistogram(object):
-    """A list of visited states distributions, each corresponding to
-    one subensemble of the simulation.
+    """A list of visited states distributions, each corresponding to one
+    subensemble of the simulation.
 
     Attributes:
-        distributions: A list of VisitedStatesDistribution objects.
+        dists: A list of VisitedStatesDistribution objects.
     """
 
-    def __init__(self, distributions):
-        self.distributions = distributions
+    def __init__(self, dists):
+        self.dists = dists
 
     def __getitem__(self, index):
-        return self.distributions[index]
+        return self.dists[index]
 
     def __iter__(self):
-        for d in self.distributions:
+        for d in self.dists:
             yield d
 
     def __len__(self):
-        return len(self.distributions)
+        return len(self.dists)
 
     def average(self, weights=None):
         """Calculate the weighted average of the histogram.
@@ -250,7 +249,7 @@ def read_nhist(path):
     return VisitedStatesHistogram.from_file(path)
 
 
-def read_all_molecule_histograms(path):
+def read_all_nhists(path):
     """Read all of the molecule number visited states histograms in a
     directory.
 
@@ -266,7 +265,7 @@ def read_all_molecule_histograms(path):
     return [VisitedStatesHistogram.from_file(f) for f in hist_files]
 
 
-def combine_all_molecule_histograms(path, runs):
+def combine_all_nhists(path, runs):
     """Combine all molecule number visited states histograms from a
     set of runs.
 
@@ -289,11 +288,11 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
     """A list of volume visited states distributions.
 
     Attributes:
-        distributions: The list of VisitedStatesDistribution objects.
+        dists: The list of VisitedStatesDistribution objects.
     """
 
-    def __init__(self, distributions):
-        super(VolumeVisitedStatesHistogram, self).__init__(distributions)
+    def __init__(self, dists):
+        super(VolumeVisitedStatesHistogram, self).__init__(dists)
 
     def _adjust_units(self, use_log_volume=False):
         for d in self:
@@ -319,7 +318,7 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
         hist = VisitedStatesHistogram.from_combined_runs(path, runs,
                                                          'vhist.dat')
 
-        return cls(hist.distributions)._adjust_units(use_log_volume)
+        return cls(hist.dists)._adjust_units(use_log_volume)
 
     @classmethod
     def from_file(cls, path, use_log_volume=False):
@@ -335,7 +334,7 @@ class VolumeVisitedStatesHistogram(VisitedStatesHistogram):
         """
         hist = VisitedStatesHistogram.from_file(path)
 
-        return cls(hist.distributions)._adjust_units(use_log_volume)
+        return cls(hist.dists)._adjust_units(use_log_volume)
 
     def write(self, path, use_log_volume=False):
         """Write the histogram to a pair of vhist.dat and vlim.dat
