@@ -8,9 +8,9 @@ import os.path
 import numpy as np
 from scipy.optimize import fsolve
 
-from coex.activities import activities_to_fractions, fractions_to_activities
-from coex.distributions import OrderParameterDistribution
-from coex.states import read_all_molecule_histograms
+from coex.activity import activities_to_fractions, fractions_to_activities
+from coex.probability import OrderParameterDistribution
+from coex.histogram import read_all_molecule_histograms
 
 
 class Simulation(object):

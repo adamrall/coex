@@ -8,10 +8,11 @@ import os.path
 import numpy as np
 from scipy.optimize import fsolve
 
-from coex.activities import activities_to_fractions, fractions_to_activities
-from coex.activities import read_bz, read_zz
-from coex.distributions import OrderParameterDistribution
-from coex.states import read_all_molecule_histograms, VisitedStatesDistribution
+from coex.activity import activities_to_fractions, fractions_to_activities
+from coex.activity import read_bz, read_zz
+from coex.probability import OrderParameterDistribution
+from coex.histogram import read_all_molecule_histograms
+from coex.hsitogram import VisitedStatesDistribution
 
 
 class Phase(object):
