@@ -9,7 +9,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.probability import OrderParameterDistribution
+from coex.probability import read_lnpi
 from coex.histogram import read_all_molecule_histograms
 
 
@@ -53,8 +53,7 @@ class Simulation(object):
             probability distribution, and molecule number visited states
             histograms.
         """
-        dist = OrderParameterDistribution.from_file(
-            os.path.join(path, 'lnpi_op.dat'))
+        dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
         nhists = read_all_molecule_histograms(path)
 
         return cls(distribution=dist, molecule_histograms=nhists,

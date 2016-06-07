@@ -10,7 +10,7 @@ from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.activity import read_bz, read_zz
-from coex.probability import OrderParameterDistribution
+from coex.probability import read_lnpi
 from coex.histogram import read_all_molecule_histograms
 from coex.hsitogram import VisitedStatesDistribution
 
@@ -58,8 +58,7 @@ class Phase(object):
             A Phase object with the data contained in the given
             directory.
         """
-        dist = OrderParameterDistribution.from_file(
-            os.path.join(path, 'lnpi_op.dat'))
+        dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
         nhists = read_all_molecule_histograms(path)
         beta = None
         try:
