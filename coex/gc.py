@@ -9,8 +9,8 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
-from coex.probability import read_lnpi
-from coex.histogram import read_all_nhists
+from coex.dist import read_lnpi
+from coex.hist import read_all_nhists
 
 
 class Simulation(object):
@@ -127,10 +127,10 @@ class Simulation(object):
             A new Simulation object at the coexistence point.
         """
         def objective(x):
-            vapor, liquid = self.dist.transform(x).split()
+            vapor, liquid = self.dist.split()
 
-            return np.abs(sum(np.exp(vapor.log_probs)) -
-                          sum(np.exp(liquid.log_probs)))
+            return np.abs(sum(np.exp(vapor.log_probs + x * vapor.index)) -
+                          sum(np.exp(liquid.log_probs + x * liquid.index)))
 
         solution = fsolve(objective, x0=x0, maxfev=10000)
         dist = self.dist.transform(solution)

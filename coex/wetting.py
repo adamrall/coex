@@ -18,17 +18,17 @@ def get_cos_theta(s, d):
     return -(s - d) / (s + d)
 
 
-def get_drying_coefficient(distribution):
+def get_drying_coefficient(dist):
     """Calculate the drying coefficient.
 
     Args:
-        distribution: An OrderParameterDistribution from a direct (GC)
-            drying simulation.
+        dist: A Distribution object from a direct (GC) drying
+            simulation.
 
     Returns:
         The dimensionless drying coefficient (beta*d*A).
     """
-    potential = -distribution.log_probabilities
+    potential = -dist.log_probs
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[:split])
@@ -41,9 +41,8 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     simulations.
 
     Args:
-        valley: An OrderParameterDistribution from the valley region.
-        plateau: An OrderParameterDistribution from the plateau
-            region.
+        valley: A Distribution from the valley region.
+        plateau: A Distribution from the plateau region.
         index: The reference subensemble number.
         reference: The reference spreading/drying coefficient.
 
@@ -54,17 +53,16 @@ def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
     return reference - (valley - valley[index]) + (plateau - plateau[index])
 
 
-def get_spreading_coefficient(distribution):
+def get_spreading_coefficient(dist):
     """Calculate the spreading coefficient.
 
     Args:
-        distribution: An OrderParameterDistribution from a direct (GC)
-            spreading simulation.
+        dist: A Distribution from a direct (GC) spreading simulation.
 
     Returns:
         The dimensionless spreading coefficient (beta*s*A).
     """
-    potential = -distribution.log_probabilities
+    potential = -dist.log_probs
     valley = np.amin(potential)
     split = int(0.5 * len(potential))
     plateau = np.mean(potential[split:])

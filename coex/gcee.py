@@ -10,8 +10,8 @@ from scipy.optimize import fsolve
 
 from coex.activity import activities_to_fractions, fractions_to_activities
 from coex.activity import read_bz, read_zz
-from coex.probability import read_lnpi
-from coex.histogram import read_all_nhists, VisitedStatesDistribution
+from coex.dist import read_lnpi
+from coex.hist import read_all_nhists, read_hist
 
 
 class Phase(object):
@@ -88,8 +88,7 @@ class Phase(object):
         shifted.index = index
         logp = shifted.dist.log_probs
         if beta is not None:
-            energy = VisitedStatesDistribution.from_file(energy_histogram_path,
-                                                         index)
+            energy = read_hist(energy_histogram_path)[index]
             diff = beta - self.beta[index]
             shifted.beta[index] = beta
             logp[index] += energy.reweight(diff)
