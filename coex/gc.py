@@ -113,22 +113,21 @@ class Simulation(object):
                           sum(np.exp(liquid.log_probs + x * liquid.index)))
 
         solution = fsolve(objective, x0=x0, maxfev=10000)
-        dist = self.dist.transform(solution)
+        coex = copy.copy(self)
+        coex.dist.log_probs += solution * coex.dist.index
         if species == 0:
             frac = activities_to_fractions(self.activities,
                                            one_subensemble=True)
             frac[0] += solution
-            act = fractions_to_activities(frac, one_subensemble=True)
+            coex.activities = fractions_to_activities(frac,
+                                                      one_subensemble=True)
         else:
-            act = np.copy(self.activities)
-            act[species - 1] *= np.exp(solution)
-            frac = activities_to_fractions(act, one_subensemble=True)
+            coex.activities[species - 1] *= np.exp(solution)
 
-        weights = np.nan_to_num(np.log(self.activities) - np.log(act))
-        nhists = copy.copy(self.molecule_histograms)
+        coex.weights = np.nan_to_num(np.log(self.activities) -
+                                     np.log(coex.activities))
 
-        return Simulation(dist=dist, molecule_histograms=nhists,
-                          fractions=frac, weights=weights)
+        return coex
 
 
 def get_coexistence(sim, species, x0=-0.001):
