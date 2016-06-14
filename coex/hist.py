@@ -106,7 +106,7 @@ class Histogram(object):
         if weights is None:
             return np.array([d.average(weight=None) for d in self])
 
-        return np.array([d.average(weights[i]) for i, d in self])
+        return np.array([d.average(weights[i]) for i, d in enumerate(self)])
 
     def write(self, path):
         """Write a histogram to a pair of hist and lim files.

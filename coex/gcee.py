@@ -210,8 +210,8 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
         The liquid and vapor phases must already be shifted to their
         appropriate reference points.
     """
-    liq = liquid.copy()
-    vap = vapor.copy()
+    liq = copy.copy(liquid)
+    vap = copy.copy(vapor)
     assert vap.is_vapor
     vap_logp = vap.dist.log_probs
     liq_logp = liq.dist.log_probs

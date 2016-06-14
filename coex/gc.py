@@ -160,5 +160,4 @@ def read_simulation(path, fractions):
     dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
     nhists = read_all_nhists(path)
 
-    return Simulation(dist=dist, molecule_histograms=nhists,
-                      fractions=fractions)
+    return Simulation(dist=dist, nhists=nhists, fractions=fractions)
