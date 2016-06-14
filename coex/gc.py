@@ -39,26 +39,6 @@ class Simulation(object):
         if weights is None:
             self.weights = np.tile(None, len(nhists) - 1)
 
-    @classmethod
-    def from_directory(cls, path, fractions):
-        """Read the relevant data from a simulation directory.
-
-        Args:
-            path: The directory containing the data.
-            fractions: The activity fractions (chi, eta_j) of the
-                simulation.
-
-        Returns:
-            A dict with the order parameter, logarithm of the
-            probability distribution, and molecule number visited
-            states histograms.
-        """
-        dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
-        nhists = read_all_nhists(path)
-
-        return cls(dist=dist, molecule_histograms=nhists,
-                   fractions=fractions)
-
     def get_composition(self):
         """Calculate the average composition of each phase in the
         simulation.
@@ -165,5 +145,20 @@ def get_coexistence(sim, species, x0=-0.001):
 
 
 def read_simulation(path, fractions):
-    """Read the data from a simulation directory."""
-    return Simulation.from_directory(path, fractions)
+    """Read the relevant data from a simulation directory.
+
+    Args:
+        path: The directory containing the data.
+        fractions: The activity fractions (chi, eta_j) of the
+            simulation.
+
+    Returns:
+        A dict with the order parameter, logarithm of the
+        probability distribution, and molecule number visited
+        states histograms.
+    """
+    dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
+    nhists = read_all_nhists(path)
+
+    return Simulation(dist=dist, molecule_histograms=nhists,
+                      fractions=fractions)

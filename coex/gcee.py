@@ -44,31 +44,6 @@ class Phase(object):
         self.weights = weights
         self.index = None
 
-    @classmethod
-    def from_directory(cls, path, is_vapor=False):
-        """Read the relevant data from an exapnded ensemble simulation
-        directory.
-
-        Args:
-            path: The directory containing the data.
-            is_vapor: A boolean denoting whether the phase is a vapor.
-
-        Returns:
-            A Phase object with the data contained in the given
-            directory.
-        """
-        dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
-        nhists = read_all_nhists(path)
-        beta = None
-        try:
-            bz = read_bz(os.path.join(path, 'bz.dat'))
-            beta = bz['beta']
-            fractions = bz['fractions']
-        except FileNotFoundError:
-            fractions = read_zz(os.path.join(path, 'zz.dat'))
-
-        return cls(dist=dist, nhists=nhists, fractions=fractions, beta=beta)
-
     def shift_to_reference(self, index, fractions, beta=None,
                            energy_histogram_path=None):
         """Shift the phase relative to a reference point.
@@ -179,7 +154,18 @@ def read_phase(path, is_vapor=False):
         A Phase object with the data contained in the given
         directory.
     """
-    return Phase.from_directory(path, is_vapor)
+    dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
+    nhists = read_all_nhists(path)
+    beta = None
+    try:
+        bz = read_bz(os.path.join(path, 'bz.dat'))
+        beta = bz['beta']
+        fractions = bz['fractions']
+    except FileNotFoundError:
+        fractions = read_zz(os.path.join(path, 'zz.dat'))
+
+    return Phase(dist=dist, nhists=nhists, fractions=fractions, beta=beta,
+                 is_vapor=is_vapor)
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
