@@ -61,19 +61,21 @@ class Phase(object):
         """
         shifted = copy.copy(self)
         shifted.index = index
-        logp = shifted.dist.log_probs
+        logp_shift = -shifted.dist.log_probs[index]
         if beta is not None:
             energy = read_hist(energy_histogram_path)[index]
             diff = beta - self.beta[index]
             shifted.beta[index] = beta
-            logp[index] += energy.reweight(diff)
+            logp_shift += energy.reweight(diff)
 
         ref_act = fractions_to_activities(fractions, one_subensemble=True)
         act = self.activities
         ratios = np.nan_to_num(np.log(act[:, index]) - np.log(ref_act))
         shifted.activities[:, index] = ref_act
         for nh, r in zip(shifted.nhists[1:], ratios):
-            logp[index] += nh[index].reweight(r)
+            logp_shift += nh[index].reweight(r)
+
+        shifted.dist.log_probs += logp_shift
 
         return shifted
 
