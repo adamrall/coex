@@ -24,6 +24,7 @@ class Phase(object):
             objects.
         fractions: A numpy array of the (chi, eta_j) activity
             fractions of the simulation.
+        path: The location of the simulation data.
         beta: An optional list of thermodynamic beta (1/kT) values,
             for temperature expanded ensemble simulations.
         is_vapor: A bool; True if the phase is a vapor, i.e., is
@@ -34,18 +35,18 @@ class Phase(object):
             via histogram reweighting.
     """
 
-    def __init__(self, dist, nhists, fractions, beta=None, is_vapor=False,
-                 weights=None):
+    def __init__(self, dist, nhists, fractions, path, beta=None,
+                 is_vapor=False, weights=None):
         self.dist = dist
         self.nhists = nhists
         self.activities = fractions_to_activities(fractions)
+        self.path = path
         self.beta = beta
         self.is_vapor = is_vapor
         self.weights = weights
         self.index = None
 
-    def shift_to_reference(self, index, fractions, beta=None,
-                           energy_histogram_path=None):
+    def shift_to_reference(self, index, fractions, beta=None):
         """Shift the phase relative to a reference point.
 
         Args:
@@ -53,8 +54,6 @@ class Phase(object):
             fractions: The reference activity fractions.
             beta: The reference thermodynamic beta (1/kT), required only
                 for TEE simulations.
-            energy_histogram_path: The location of the Phase's energy
-                histogram, required for TEE simulations.
 
         Returns:
             A new Phase object shifted to the reference point.
@@ -63,7 +62,7 @@ class Phase(object):
         shifted.index = index
         logp_shift = -shifted.dist.log_probs[index]
         if beta is not None:
-            energy = read_hist(energy_histogram_path)[index]
+            energy = read_hist(os.path.join(self.path, 'ehist.dat'))[index]
             diff = beta - self.beta[index]
             shifted.beta[index] = beta
             logp_shift += energy.reweight(diff)
@@ -166,8 +165,8 @@ def read_phase(path, is_vapor=False):
     except FileNotFoundError:
         fractions = read_zz(os.path.join(path, 'zz.dat'))
 
-    return Phase(dist=dist, nhists=nhists, fractions=fractions, beta=beta,
-                 is_vapor=is_vapor)
+    return Phase(dist=dist, nhists=nhists, fractions=fractions, path=path,
+                 beta=beta, is_vapor=is_vapor)
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
