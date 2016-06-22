@@ -36,21 +36,21 @@ def get_drying_coefficient(dist):
     return valley - plateau
 
 
-def get_expanded_ensemble_coefficients(valley, plateau, index, reference):
+def get_expanded_ensemble_coefficients(valley, plateau, reference):
     """Calculate the change in spreading/drying coefficient for a pair of
     simulations.
 
     Args:
-        valley: A Distribution from the valley region.
-        plateau: A Distribution from the plateau region.
-        index: The reference subensemble number.
+        valley: A gcee.Phase from the valley region.
+        plateau: A gcee.Phase from the plateau region.
         reference: The reference spreading/drying coefficient.
 
     Returns:
         A numpy array with the spreading/drying coefficient of each
         subensemble.
     """
-    return reference - (valley - valley[index]) + (plateau - plateau[index])
+    return (reference - (valley.dist - valley.dist[valley.index]) +
+            (plateau.dist - plateau.dist[plateau.index])
 
 
 def get_spreading_coefficient(dist):
