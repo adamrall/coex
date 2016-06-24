@@ -151,14 +151,17 @@ def read_phase(path, index, fractions=None, beta=None):
     """
     dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
     nhists = read_all_nhists(path)
-    act = None
     bb = None
     try:
         bz = read_bz(os.path.join(path, 'bz.dat'))
         bb = bz['beta']
         act = fractions_to_activities(bz['fractions'])
     except FileNotFoundError:
-        act = fractions_to_activities(read_zz(os.path.join(path, 'zz.dat')))
+        try:
+            act = fractions_to_activities(
+                read_zz(os.path.join(path, 'zz.dat')))
+        except FileNotFoundError:
+            act = None
 
     logp_shift = -dist.log_probs[index]
     if beta is not None:
