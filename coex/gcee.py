@@ -19,64 +19,60 @@ class Phase(object):
     canonical expanded ensemble simulation.
 
     Attributes:
-        dist: An OrderParameterDistribution object.
+        dist: A Distribution object.
+        path: The location of the simulation data.
+        index: The reference subensemble index.
         nhists: A list of molecule number VisitedStatesHistogram
             objects.
         fractions: A numpy array of the (chi, eta_j) activity
             fractions of the simulation.
-        path: The location of the simulation data.
         beta: An optional list of thermodynamic beta (1/kT) values,
             for temperature expanded ensemble simulations.
-        is_vapor: A bool; True if the phase is a vapor, i.e., is
-            likely to have visited a state with zero molecules.
         weights: The logarithm of the initial activities minus the
-            logarithm of the coexistence activities, used to calculate
-            the average number of molecules at the coexistence point
-            via histogram reweighting.
+            logarithm of the coexistence activities, used to
+            calculate the average number of molecules at the
+            coexistence point via histogram reweighting.
     """
 
-    def __init__(self, dist, nhists, fractions, path, beta=None,
-                 is_vapor=False, weights=None):
+    def __init__(self, dist, path, index, nhists=None, activities=None,
+                 beta=None, weights=None):
         self.dist = dist
-        self.nhists = nhists
-        self.activities = fractions_to_activities(fractions)
         self.path = path
+        self.index = index
+        self.nhists = nhists
+        self.activities = activities
         self.beta = beta
-        self.is_vapor = is_vapor
         self.weights = weights
-        self.index = None
 
-    def shift_to_reference(self, index, fractions, beta=None):
-        """Shift the phase relative to a reference point.
+    def shift_to_coexistence(self, solutions, species):
+        """Shift the activities and order parameter probability
+        distribution to the coexistence point.
 
         Args:
-            index: The reference subensemble index.
-            fractions: The reference activity fractions.
-            beta: The reference thermodynamic beta (1/kT), required only
-                for TEE simulations.
+            solutions: A list of log(activitiy) differences.
+            species: The species used in histogram reweighting.
 
         Returns:
-            A new Phase object shifted to the reference point.
+            A copy of the Phase with the coexistence activities
+            and distribution and with the weights attribute set to
+            the log(activity) differences.
         """
-        shifted = copy.copy(self)
-        shifted.index = index
-        logp_shift = -shifted.dist.log_probs[index]
-        if beta is not None:
-            energy = read_hist(os.path.join(self.path, 'ehist.dat'))[index]
-            diff = beta - self.beta[index]
-            shifted.beta[index] = beta
-            logp_shift += energy.reweight(diff)
+        coex = copy.copy(self)
+        if species == 0:
+            frac = activities_to_fractions(coex.activities)
+            frac[0] -= solutions
+            coex.activities = fractions_to_activities(frac)
 
-        ref_act = fractions_to_activities(fractions, one_subensemble=True)
-        act = self.activities
-        ratios = np.nan_to_num(np.log(act[:, index]) - np.log(ref_act))
-        shifted.activities[:, index] = ref_act
-        for nh, r in zip(shifted.nhists[1:], ratios):
-            logp_shift += nh[index].reweight(r)
+        for i, sol in enumerate(solutions):
+            coex.dist.log_probs[i] += coex.nhists[species][i].reweight(sol)
+            if species != 0:
+                coex.activities[species - 1, i] = np.exp(
+                    np.log(self.activities[species - 1, i]) - sol)
 
-        shifted.dist.log_probs += logp_shift
+        coex.weights = np.nan_to_num(np.log(self.activities) -
+                                     np.log(coex.activities))
 
-        return shifted
+        return coex
 
     def get_composition(self):
         """Calculate the weighted average composition of the phase.
@@ -106,9 +102,6 @@ class Phase(object):
             A numpy array with the grand potential of each subensemble.
         """
         lnpi = self.dist.log_probs
-        if not self.is_vapor:
-            return -lnpi
-
         gp = np.zeros(len(lnpi))
         iter_range = range(len(gp))
         nhist = self.nhists[0]
@@ -143,30 +136,48 @@ class Phase(object):
                          for h, w in zip(self.nhists[1:], self.weights)])
 
 
-def read_phase(path, is_vapor=False):
+def read_phase(path, index, fractions=None, beta=None):
     """Read the relevant data from an exapnded ensemble simulation
     directory.
 
     Args:
         path: The directory containing the data.
-        is_vapor: A boolean denoting whether the phase is a vapor.
+        index: The reference subensemble index.
+        fractions: The reference activity fractions.
+        beta: The reference inverse temperature (1/kT).
 
     Returns:
-        A Phase object with the data contained in the given
-        directory.
+        A Phase object with the data contained in the given directory.
     """
     dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
     nhists = read_all_nhists(path)
-    beta = None
+    act = None
+    bb = None
     try:
         bz = read_bz(os.path.join(path, 'bz.dat'))
-        beta = bz['beta']
-        fractions = bz['fractions']
+        bb = bz['beta']
+        act = fractions_to_activities(bz['fractions'])
     except FileNotFoundError:
-        fractions = read_zz(os.path.join(path, 'zz.dat'))
+        act = fractions_to_activities(read_zz(os.path.join(path, 'zz.dat')))
 
-    return Phase(dist=dist, nhists=nhists, fractions=fractions, path=path,
-                 beta=beta, is_vapor=is_vapor)
+    logp_shift = -dist.log_probs[index]
+    if beta is not None:
+        energy = read_hist(os.path.join(path, 'ehist.dat'))[index]
+        diff = beta - bb[index]
+        bb[index] = beta
+        logp_shift += energy.reweight(diff)
+
+    if fractions is not None:
+        ref_act = fractions_to_activities(fractions, one_subensemble=True)
+        ratios = np.nan_to_num(np.log(act[:, index]) - np.log(ref_act))
+        act[:, index] = ref_act
+        for nh, r in zip(nhists[1:], ratios):
+            logp_shift += nh[index].reweight(r)
+
+    dist.log_probs += logp_shift
+
+    return Phase(dist=dist, path=path, index=index, nhists=nhists,
+                 activities=act, beta=bb)
 
 
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
@@ -184,14 +195,10 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     Returns:
         A tuple with the two Phase objects at coexistence.
     """
-    fst = first.copy()
-    snd = second.copy()
+    fst = copy.copy(first)
+    snd = copy.copy(second)
     for p in (fst, snd):
-        idx = p.index
-        assert idx is not None, \
-            'Phases must be shifted to their reference points.'
-        logp = p.dist.log_probs
-        logp -= logp[idx] + grand_potential
+        p.dist.log_propbs -= p.dist[p.index] + grand_potential
 
     return _get_two_phase_coexistence(fst, snd, species)
 
@@ -213,14 +220,8 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
     """
     liq = copy.copy(liquid)
     vap = copy.copy(vapor)
-    assert vap.is_vapor
-    vap_logp = vap.dist.log_probs
-    liq_logp = liq.dist.log_probs
-    vap_logp = -vap.get_grand_potential()
-    liq_idx, vap_idx = liq.index, vap.index
-    assert liq_idx is not None and vap_idx is not None, \
-        'Phases must be shifted to their reference points.'
-    liq_logp += vap_logp[vap_idx] - liq_logp[liq_idx]
+    vap.dist = -vap.get_grand_potential()
+    liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
     return _get_two_phase_coexistence(liq, vap, species)
 
@@ -244,40 +245,15 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         The first and second phases must already be shifted to their
         appropriate reference points.
     """
-    fst_logp = first.dist.log_probs
-    fst_nhist = first.nhists[species]
-    snd_logp = second.dist.log_probs
-    snd_nhist = second.nhists[species]
-    init_act = np.copy(first.activities)
-    if species == 0:
-        frac = activities_to_fractions(first.activities)
-    else:
-        coex_act = np.copy(first.activities)
-
     def objective(x, j):
-        return np.abs(fst_logp[j] + fst_nhist[j].reweight(x) -
-                      snd_logp[j] - snd_nhist[j].reweight(x))
+        if j == first.index or j == second.index:
+            return 0.0
 
-    for i in range(len(fst_logp)):
-        if i == first.index or i == second.index:
-            continue
+        return np.abs(first.dist[j] + first.nhists[species][j].reweight(x) -
+                      second.dist[j] - second.nhists[species][j].reweight(x))
 
-        solution = fsolve(objective, x0=x0, args=(i, ))
-        fst_logp[i] += fst_nhist[i].reweight(solution)
-        snd_logp[i] += snd_nhist[i].reweight(solution)
+    solutions = np.array([fsolve(objective, x0=x0, args=(i, ))
+                          for i in range(len(first.dist))])
 
-        if species == 0:
-            frac[0, i] -= solution
-        else:
-            coex_act[species - 1, i] = np.exp(
-                np.log(init_act[species - 1, i]) - solution)
-
-    if species == 0:
-        coex_act = fractions_to_activities(frac)
-
-    first.weights = np.nan_to_num(np.log(init_act) - np.log(coex_act))
-    second.weights = np.copy(first.weights)
-    first.activities = coex_act
-    second.activities = coex_act
-
-    return first, second
+    return [p.shift_to_coexistence(solutions, species)
+            for p in (first, second)]

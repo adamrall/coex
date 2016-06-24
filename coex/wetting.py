@@ -49,8 +49,7 @@ def get_expanded_ensemble_coefficients(valley, plateau, reference):
         A numpy array with the spreading/drying coefficient of each
         subensemble.
     """
-    return (reference - (valley.dist - valley.dist[valley.index]) +
-            (plateau.dist - plateau.dist[plateau.index])
+    return reference + plateau.dist - valley.dist
 
 
 def get_spreading_coefficient(dist):
