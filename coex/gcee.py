@@ -43,6 +43,8 @@ class Phase(object):
         self.activities = activities
         self.beta = beta
         self.weights = weights
+        if weights is None:
+            self.weights = np.tile(None, len(dist))
 
     def shift_to_coexistence(self, solutions, species):
         """Shift the activities and order parameter probability
@@ -223,7 +225,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
     """
     liq = copy.copy(liquid)
     vap = copy.copy(vapor)
-    vap.dist = -vap.get_grand_potential()
+    vap.dist.log_probs = -vap.get_grand_potential()
     liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
     return _get_two_phase_coexistence(liq, vap, species)
