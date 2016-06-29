@@ -84,8 +84,8 @@ def write_zz(path, fractions):
         fractions: A numpy array with activity fractions.
     """
     cols = fractions.shape[1]
-    arr = np.column_stack((range(cols), fractions))
-    np.savetxt(path, arr, fmt=['%8d'] + cols * ['%10.5g'])
+    arr = np.column_stack((range(cols), *fractions))
+    np.savetxt(path, arr, fmt=['%d'] + cols * ['%.15g'])
 
 
 def read_bz(path):
@@ -114,5 +114,5 @@ def write_bz(path, beta, fractions):
         beta: The list of inverse temperature (1/kT) values.
         fractions: A numpy array with the activity fractions.
     """
-    arr = np.column_stack((range(len(beta)), beta, fractions))
-    np.savetxt(path, arr, fmt=['%8d'] + (arr.shape[1] - 1) * ['%10.5g'])
+    arr = np.column_stack((range(len(beta)), beta, *fractions))
+    np.savetxt(path, arr, fmt=['%d'] + (arr.shape[1] - 1) * ['%.15g'])
