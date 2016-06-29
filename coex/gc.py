@@ -45,12 +45,13 @@ class Simulation(object):
             mole fraction of each species.
         """
         size = len(self.dist)
-        if len(self.molecule_histograms) < 3:
-            return np.tile(1.0, size), np.tile(1.0, size)
+        if len(self.nhists) < 3:
+            return {'vapor': np.tile(1.0, size), 'liquid': np.tile(1.0, size)}
 
-        vapor_n, liquid_n = self.get_average_n()
+        avg_n = self.get_average_n()
 
-        return vapor_n / sum(vapor_n), liquid_n / sum(liquid_n)
+        return {'vapor': avg_n['vapor'] / sum(avg_n['vapor']),
+                'liquid': avg_n['liquid'] / sum(avg_n['liquid'])}
 
     def get_grand_potential(self):
         """Calculate the grand potential of the Simulation.
@@ -79,7 +80,6 @@ class Simulation(object):
             the average number of molecules of each species.
         """
         bound = int(split * len(self.dist))
-        nhists = self.molecule_histograms
 
         def average_phase(hist, weight, phase):
             split_hist = hist[:bound] if phase == 'vapor' else hist[bound:]
@@ -87,11 +87,11 @@ class Simulation(object):
             return [d.average(weight) for d in split_hist]
 
         vapor = np.array([average_phase(nh, self.weights[i], 'vapor')
-                          for i, nh in enumerate(nhists[1:])])
+                          for i, nh in enumerate(self.nhists[1:])])
         liquid = np.array([average_phase(nh, self.weights[i], 'liquid')
-                           for i, nh in enumerate(nhists[1:])])
+                           for i, nh in enumerate(self.nhists[1:])])
 
-        return vapor, liquid
+        return {'vapor': vapor, 'liquid': liquid}
 
     def get_coexistence(self, species=1, x0=-0.001):
         """Find the coexistence point of the simulation.
