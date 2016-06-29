@@ -208,9 +208,9 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     Returns:
         A tuple with the two Phase objects at coexistence.
     """
-    fst = copy.copy(first)
-    snd = copy.copy(second)
-    for p in (fst, snd):
+    fst = copy.deepcopy(first)
+    snd = copy.deepcopy(second)
+    for p in fst, snd:
         p.dist.log_propbs -= p.dist[p.index] + grand_potential
 
     return _get_two_phase_coexistence(fst, snd, species)
@@ -231,8 +231,8 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
         The liquid and vapor phases must already be shifted to their
         appropriate reference points.
     """
-    liq = copy.copy(liquid)
-    vap = copy.copy(vapor)
+    liq = copy.deepcopy(liquid)
+    vap = copy.deepcopy(vapor)
     vap.dist.log_probs = -vap.get_grand_potential()
     liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
@@ -267,6 +267,7 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
 
     solutions = [fsolve(objective, x0=x0, args=(i, ))
                  for i in range(len(first.dist))]
+    for p in first, second:
+        p.shift_to_coexistence(solutions, species)
 
-    return [p.shift_to_coexistence(solutions, species)
-            for p in (first, second)]
+    return first, second
