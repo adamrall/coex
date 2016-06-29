@@ -76,6 +76,18 @@ def read_zz(path):
     return np.transpose(np.loadtxt(path))[1:]
 
 
+def write_zz(path, fractions):
+    """Write the activity fractions to file.
+
+    Args:
+        path: The 'zz.dat' file to write.
+        fractions: A numpy array with activity fractions.
+    """
+    cols = fractions.shape[1]
+    arr = np.column_stack((range(cols), fractions))
+    np.savetxt(path, arr, fmt=['%8d'] + cols * ['%10.5g'])
+
+
 def read_bz(path):
     """Read the activity fractions and beta values of a TEE simulation.
 
@@ -92,3 +104,15 @@ def read_bz(path):
     zz = np.transpose(np.loadtxt(path))[2:]
 
     return {'beta': beta, 'fractions': zz}
+
+
+def write_bz(path, beta, fractions):
+    """Write the activity fractions and beta values of a TEE simulation.
+
+    Args:
+        path: The 'bz.dat' file to write.
+        beta: The list of inverse temperature (1/kT) values.
+        fractions: A numpy array with the activity fractions.
+    """
+    arr = np.column_stack((range(len(beta)), beta, fractions))
+    np.savetxt(path, arr, fmt=['%8d'] + (arr.shape[1] - 1) * ['%10.5g'])
