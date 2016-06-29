@@ -46,6 +46,14 @@ class Phase(object):
         if weights is None:
             self.weights = np.tile(None, len(dist))
 
+    @property
+    def fractions(self):
+        return activities_to_fractions(self.activities)
+
+    @fractions.setter
+    def fractions(self, frac):
+        self.activities = fractions_to_activities(frac)
+
     def shift_to_coexistence(self, solutions, species):
         """Shift the activities and order parameter probability
         distribution to the coexistence point.

@@ -36,6 +36,22 @@ class Simulation(object):
         if weights is None:
             self.weights = np.tile(None, len(nhists) - 1)
 
+    @property
+    def fractions(self):
+        return np.reshape(activities_to_fractions(self.activities,
+                                                  one_subensemble=True),
+                          len(self.activities))
+
+    @fractions.setter
+    def fractions(self, frac):
+        if not isinstance(frac, np.ndarray):
+            transposed = np.transpose(np.array([frac]))
+        else:
+            transposed = np.transpose(frac)
+
+        self.activities = fractions_to_activities(transposed,
+                                                  one_subensemble=True)
+
     def get_composition(self):
         """Calculate the average composition of each phase in the
         simulation.
