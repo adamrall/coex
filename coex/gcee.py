@@ -68,8 +68,8 @@ class Phase(object):
         for i, sol in enumerate(solutions):
             coex.dist.log_probs[i] += coex.nhists[species][i].reweight(sol)
             if species != 0:
-                coex.activities[species - 1, i] = np.exp(
-                    np.log(self.activities[species - 1, i]) - sol)
+                old_act = self.activities[species - 1, i]
+                coex.activities[species - 1, i] = np.exp(np.log(old_act) - sol)
 
         coex.weights = np.nan_to_num(np.log(self.activities) -
                                      np.log(coex.activities))
@@ -257,8 +257,8 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         return np.abs(first.dist[j] + first.nhists[species][j].reweight(x) -
                       second.dist[j] - second.nhists[species][j].reweight(x))
 
-    solutions = np.array([fsolve(objective, x0=x0, args=(i, ))
-                          for i in range(len(first.dist))])
+    solutions = [fsolve(objective, x0=x0, args=(i, ))
+                 for i in range(len(first.dist))]
 
     return [p.shift_to_coexistence(solutions, species)
             for p in (first, second)]
