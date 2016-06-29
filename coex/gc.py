@@ -21,20 +21,17 @@ class Simulation(object):
         dist: An OrderParameterDistribution object.
         nhists: A list of molecule number VisitedStatesHistogram
             objects.
-        fractions: A 2D numpy array with the activity fractions
-           (chi, eta_j) of the simulation.
+        activities: A numpy array with the activities of each species.
         weights: The logarithm of the initial activities minus the
             logarithm of the coexistence activities, used to calculate
             the average number of molecules at the coexistence point
             via histogram reweighting.
     """
 
-    def __init__(self, dist, nhists, fractions,
-                 weights=None):
+    def __init__(self, dist, nhists, activities, weights=None):
         self.dist = dist
         self.nhists = nhists
-        self.activities = fractions_to_activities(fractions,
-                                                  one_subensemble=True)
+        self.activities = activities
         self.weights = weights
         if weights is None:
             self.weights = np.tile(None, len(nhists) - 1)
@@ -158,5 +155,11 @@ def read_simulation(path, fractions):
     """
     dist = read_lnpi(os.path.join(path, 'lnpi_op.dat'))
     nhists = read_all_nhists(path)
+    if not isinstance(fractions, np.ndarray):
+        frac = np.transpose(np.array([fractions]))
+    else:
+        frac = np.transpose(fractions)
 
-    return Simulation(dist=dist, nhists=nhists, fractions=fractions)
+    act = fractions_to_activities(frac)
+
+    return Simulation(dist=dist, nhists=nhists, activities=act)
