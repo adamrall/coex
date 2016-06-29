@@ -61,28 +61,19 @@ class Phase(object):
         Args:
             solutions: A list of log(activitiy) differences.
             species: The species used in histogram reweighting.
-
-        Returns:
-            A copy of the Phase with the coexistence activities
-            and distribution and with the weights attribute set to
-            the log(activity) differences.
         """
-        coex = copy.copy(self)
         if species == 0:
-            frac = activities_to_fractions(coex.activities)
+            frac = activities_to_fractions(self.activities)
             frac[0] -= solutions
-            coex.activities = fractions_to_activities(frac)
+            self.activities = fractions_to_activities(frac)
 
         for i, sol in enumerate(solutions):
-            coex.dist.log_probs[i] += coex.nhists[species][i].reweight(sol)
+            self.dist.log_probs[i] += self.nhists[species][i].reweight(sol)
             if species != 0:
-                old_act = self.activities[species - 1, i]
-                coex.activities[species - 1, i] = np.exp(np.log(old_act) - sol)
-
-        coex.weights = np.nan_to_num(np.log(self.activities) -
-                                     np.log(coex.activities))
-
-        return coex
+                log_old_act = np.log(self.activities[species - 1, i])
+                log_new_act = log_old_act - sol
+                self.weights[i] = np.nan_to_num(log_old_act - log_new_act)
+                self.activities[species - 1, i] = np.exp(log_new_act)
 
     def get_composition(self):
         """Calculate the weighted average composition of the phase.
