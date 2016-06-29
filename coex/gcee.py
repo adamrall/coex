@@ -184,6 +184,22 @@ def read_phase(path, index, fractions=None, beta=None):
                  activities=act, beta=bb)
 
 
+def read_phases(paths, index, fractions=None, beta=None):
+    """Read the relevant data from a list of exapnded ensemble
+    simulations with the same reference point.
+
+    Args:
+        paths: A list of directories containing the data to read.
+        index: The reference subensemble index.
+        fractions: The reference activity fractions.
+        beta: The reference inverse temperature (1/kT).
+
+    Returns:
+        A tuple of Phases the data in each directory.
+    """
+    return (read_phase(p, index, fractions, beta) for p in paths)
+
+
 def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     """Find the coexistence point of two liquid phases.
 
