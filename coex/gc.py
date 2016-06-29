@@ -126,7 +126,7 @@ class Simulation(object):
                           sum(np.exp(liquid.log_probs + x * liquid.index)))
 
         solution = fsolve(objective, x0=x0, maxfev=10000)
-        coex = copy.copy(self)
+        coex = copy.deepcopy(self)
         coex.dist.log_probs += solution * coex.dist.index
         if species == 0:
             frac = activities_to_fractions(self.activities,

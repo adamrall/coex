@@ -328,7 +328,7 @@ class Distribution(object):
                     next_stage = curr_mol & curr_sub & (stage == i + 1)
                     dist[curr_stage] = dist[next_stage] - fit[curr_stage]
 
-        smoothed = copy.copy(self)
+        smoothed = copy.deepcopy(self)
         smoothed.log_probs = dist
 
         return smoothed
