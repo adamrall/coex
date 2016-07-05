@@ -272,7 +272,7 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         return np.abs(first.dist[j] + first.nhists[species][j].reweight(x) -
                       second.dist[j] - second.nhists[species][j].reweight(x))
 
-    solutions = [fsolve(objective, x0=x0, args=(i, ))
+    solutions = [fsolve(objective, x0=x0, args=(i, ))[0]
                  for i in range(len(first.dist))]
     for p in first, second:
         p.shift_to_coexistence(solutions, species)
