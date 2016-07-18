@@ -92,12 +92,12 @@ class TransitionMatrix(object):
                     cs = sel & (stages == g)
                     ns = sel & (stages == g + 1)
                     dist[cs] = dist[ns] + guess[cs] - guess[ns]
-                    if (self.fw_att[cs] > min_attempts and
-                            self.rev_att[ns] > min_attempts and
-                            self.fw_prob[cs] > 0.0 and
-                            self.rev_prob[ns] > 0.0):
-                        dist[cs] -= np.log(self.fw_prob[cs] /
-                                           self.rev_prob[ns])
+                    if (self.fw_atts[cs] > min_attempts and
+                            self.rev_atts[ns] > min_attempts and
+                            self.fw_probs[cs] > 0.0 and
+                            self.rev_probs[ns] > 0.0):
+                        dist[cs] -= np.log(self.fw_probs[cs] /
+                                           self.rev_probs[ns])
 
         return Distribution(index=ind, log_probs=dist)
 
