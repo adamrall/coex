@@ -21,7 +21,8 @@ import numpy as np
 
 
 class TransitionMatrix(object):
-    """An acceptance probability matrix along a specified path.
+    """A base class for an acceptance probability matrix along a
+    specified path.
 
     Attributes:
         index: A numpy array or dict describing the states in the
@@ -75,11 +76,97 @@ class TransitionMatrix(object):
 
         return drop
 
-    def _calculate_lnpi_tr(self, guess, min_attempts):
-        dist = np.zeros(len(self))
-        if guess is None:
-            guess = np.copy(dist)
 
+class OrderParamTransitionMatrix(TransitionMatrix):
+    """An acceptance probability matrix along the order parameter path.
+
+    Attributes:
+        index: A numpy array with the order parameter values.
+        fw_atts: An array with the number of forward transition attempts
+            for each state.
+        rev_atts: An array with the number of reverse transition
+            attempts for each state.
+        fw_probs: An array with the acceptance probability for forward
+            transitions from each state.
+        rev_probs: An array with the acceptance probability for forward
+            transitions from each state.
+    """
+    def __init__(self, index, fw_atts, rev_atts, fw_probs, rev_probs):
+        super().__init__(index, fw_atts, rev_atts, fw_probs, rev_probs)
+
+    def calculate_lnpi_op(self, guess, min_attempts=1):
+        """Calculate the free energy of the order parameter path.
+
+        Args:
+            guess: A numpy array or OrderParamDistribution with an
+                initial guess for the free energy.
+            min_attempts: The minimum number of transitions in each
+                direction required to consider the transition matrix
+                when updating the free energy estimate.
+
+        Returns:
+            An OrderParamDistribution.
+        """
+        dist = np.zeros(len(self))
+
+        for i, dc in enumerate(np.diff(guess)):
+            dist[i + 1] = dist[i] + dc
+            fw_prob = self.fw_probs[i]
+            rev_prob = self.rev_probs[i + 1]
+            if (self.fw_atts[i] > min_attempts and
+                    self.rev_atts[i + 1] > min_attempts and fw_prob > 0.0 and
+                    rev_prob > 0.0):
+                dist[i + 1] += np.log(fw_prob / rev_prob)
+
+        return OrderParamDistribution(index=self.index, log_probs=dist)
+
+    def write(self, path):
+        """Write the transition matrix to a file.
+
+        Args:
+            path: The location of the file to write.
+        """
+        fmt = 3 * ['%8d'] + 2 * ['%10.5g']
+        arr = np.column_stack((self.index, self.fw_atts, self.rev_atts,
+                               self.fw_probs, self.rev_probs))
+
+        np.savetxt(path, arr, fmt=fmt, delimiter=' ')
+
+
+class TransferTransitionMatrix(TransitionMatrix):
+    """An acceptance probability matrix along the molecule transfer
+    path.
+
+    Attributes:
+        index: A dict with the overall number, molecule, subensemble,
+            and growth stage of each state in the path.
+        fw_atts: An array with the number of forward transition attempts
+            for each state.
+        rev_atts: An array with the number of reverse transition
+            attempts for each state.
+        fw_probs: An array with the acceptance probability for forward
+            transitions from each state.
+        rev_probs: An array with the acceptance probability for forward
+            transitions from each state.
+    """
+    def __init__(self, index, fw_atts, rev_atts, fw_probs, rev_probs):
+        super().__init__(index, fw_atts, rev_atts, fw_probs, rev_probs)
+
+    def calculate_lnpi_tr(self, guess, min_attempts=1):
+        """Calculate the free energy of the order parameter path.
+
+        Args:
+            guess: A numpy array or TransferDistribution with an
+                initial guess for the free energy along the molecule
+                transfer path.
+            min_attempts: The minimum number of transitions in each
+                direction required to consider the transition matrix
+                when updating the free energy estimate.
+
+        Returns:
+            A TransferDistribution.
+        """
+        dist = np.zeros(len(self))
         ind = self.index
         mol, sub, stages = ind['molecules'], ind['subensembles'], ind['stages']
         for m in np.unique(mol):
@@ -99,60 +186,77 @@ class TransitionMatrix(object):
                         dist[cs] -= np.log(self.fw_probs[cs] /
                                            self.rev_probs[ns])
 
-        return Distribution(index=ind, log_probs=dist)
+        return TransferDistribution(index=ind, log_probs=dist)
 
-    def _calculate_lnpi_op(self, guess, min_attempts):
-        dist = np.zeros(len(self))
-        if guess is None:
-            guess = np.copy(dist)
+    def calculate_lnpi_op(self, tr_guess, op_guess, species=1, min_attempts=1):
+        """Calculate the free energy of the order parameter path using
+        the transfer path of the order parameter species.
 
-        for i, dc in enumerate(np.diff(guess)):
-            dist[i + 1] = dist[i] + dc
-            fw_prob = self.fw_probs[i]
-            rev_prob = self.rev_probs[i + 1]
-            if (self.fw_atts[i] > min_attempts and
-                    self.rev_atts[i + 1] > min_attempts and fw_prob > 0.0 and
-                    rev_prob > 0.0):
-                dist[i + 1] += np.log(fw_prob / rev_prob)
-
-        return Distribution(index=self.index, log_probs=dist)
-
-    def calculate_lnpi(self, guess=None, min_attempts=1):
-        """Compute the logarithm of the probability distribution using
-        the transition matrix.
+        This method is only applicable for direct simulations.
 
         Args:
-            guess: An initial guess for the logarithm of the
-                probability distribution.
-            min_attempts: The threshold for considering a transition
-                adequately sampled.
+            tr_guess: A numpy array or TransferDistribution with an
+                initial guess for the free energy along the molecule
+                transfer path.
+            op_guess: A numpy array or OrderParamDistribution with an
+                initial guess for the free energy along the order
+                parameter path.
+            species: The order parameter species.
+            min_attempts: The minimum number of transitions in each
+                direction required to consider the transition matrix
+                when updating the free energy estimate.
 
         Returns:
-            A Distribution object with the computed logarithm of the
-            probability distribution.
+            An OrderParamDistribution.
         """
-        if isinstance(self.index, dict):
-            return self._calculate_lnpi_tr(guess, min_attempts)
+        ind = self.index
+        mol, sub, stages = ind['molecules'], ind['subensembles'], ind['stages']
+        uniq_sub = np.unique(sub)
+        dist = np.zeros(len(uniq_sub))
+        lnpi_tr = self.calculate_lnpi_tr(tr_guess)
+        for i in uniq_sub[1:]:
+            sampled = True
+            fsub = (mol == species) & (sub == i - 1)
+            rsub = (mol == species) & (sub == i)
+            fs = fsub & (stages == np.amax(stages[fsub]))
+            rs = rsub & (stages == np.amin(stages[rsub]))
+            diff = tr_guess[rs] - tr_guess[fs]
+            if (self.fw_atts[fs] > min_attempts and
+                    self.rev_atts[rs] > min_attempts and
+                    self.fw_probs[fs] > 0.0 and
+                    self.rev_probs[rs] > 0.0):
+                diff += np.log(self.fw_probs[fs] / self.rev_probs[rs])
+            else:
+                sampled = False
 
-        return self._calculate_lnpi_op(guess, min_attempts)
+            for m in stages[rsub][1:]:
+                lm = rsub & (stages == m - 1)
+                cm = rsub & (stages == m)
+                if (self.fw_atts[lm] > min_attempts and
+                        self.rev_atts[cm] > min_attempts and sampled):
+                    diff += lnpi_tr[cm] - lnpi_tr[lm]
+                else:
+                    sampled = False
+
+            if sampled:
+                dist[i] = dist[i - 1] + diff
+            else:
+                dist[i] = dist[i - 1] + op_guess[i] - op_guess[i - 1]
+
+        return OrderParamDistribution(index=uniq_sub, log_probs=dist)
 
     def write(self, path):
-        """Write a transition matrix to a file.
+        """Write the transition matrix to a file.
 
         Args:
             path: The location of the file to write.
         """
-        if isinstance(self.index, dict):
-            ind = self.index
-            fmt = 6 * ['%8d'] + 2 * ['%10.5g']
-            arr = np.column_stack((
-                ind['number'], ind['subensembles'], ind['molecules'],
-                ind['stages'], self.fw_atts, self.rev_atts, self.fw_probs,
-                self.rev_probs))
-        else:
-            fmt = 3 * ['%8d'] + 2 * ['%10.5g']
-            arr = np.column_stack((self.index, self.fw_atts, self.rev_atts,
-                                   self.fw_probs, self.rev_probs))
+        ind = self.index
+        fmt = 6 * ['%8d'] + 2 * ['%10.5g']
+        arr = np.column_stack((
+            ind['number'], ind['subensembles'], ind['molecules'],
+            ind['stages'], self.fw_atts, self.rev_atts, self.fw_probs,
+            self.rev_probs))
 
         np.savetxt(path, arr, fmt=fmt, delimiter=' ')
 
@@ -172,33 +276,38 @@ def read_pacc(path):
         path: The location of the file to read.
 
     Returns:
-        An TransitionMatrix object.
+        A TransitionMatrix object.
     """
     base = os.path.basename(path)
     if 'tr' in base:
         index = _read_tr_index(path)
         fw_atts, rev_atts, fw_probs, rev_probs = np.loadtxt(
             path, usecols=(4, 5, 6, 7), unpack=True)
+        return TransferTransitionMatrix(
+            index, fw_atts=fw_atts.astype('int'),
+            rev_atts=rev_atts.astype('int'), fw_probs=fw_probs,
+            rev_probs=rev_probs)
     elif 'op' in base:
         index, fw_atts, rev_atts, fw_probs, rev_probs = np.loadtxt(
             path, usecols=(0, 1, 2, 3, 4), unpack=True)
         index = index.astype('int')
+        return OrderParamTransitionMatrix(
+            index, fw_atts=fw_atts.astype('int'),
+            rev_atts=rev_atts.astype('int'), fw_probs=fw_probs,
+            rev_probs=rev_probs)
     else:
         raise NotImplementedError
-
-    return TransitionMatrix(index, fw_atts=fw_atts.astype('int'),
-                            rev_atts=rev_atts.astype('int'), fw_probs=fw_probs,
-                            rev_probs=rev_probs)
 
 
 def combine_matrices(matrices):
     """Combine a set of transition matrices.
 
     Args:
-        matrices: A list of TransitionMatrix objects to combine.
+        matrices: A list of TransitionMatrix-like objects to combine.
 
     Returns:
-        A TransitionMatrix object with the combined data.
+        An instance of an appropriate subclass of TransitionMatrix with
+        the combined data.
     """
     index = matrices[0].index
     fw_atts = sum(m.fw_atts for m in matrices)
@@ -206,9 +315,16 @@ def combine_matrices(matrices):
     fw_probs = sum(m.fw_atts * m.fw_probs for m in matrices) / fw_atts
     rev_probs = sum(m.rev_atts * m.rev_probs for m in matrices) / rev_atts
     fw_probs, rev_probs = np.nan_to_num(fw_probs), np.nan_to_num(rev_probs)
-
-    return TransitionMatrix(index=index, fw_atts=fw_atts, rev_atts=rev_atts,
-                            fw_probs=fw_probs, rev_probs=rev_probs)
+    if isinstance(matrices[0], TransferTransitionMatrix):
+        return TransferTransitionMatrix(
+            index=index, fw_atts=fw_atts, rev_atts=rev_atts,
+            fw_probs=fw_probs, rev_probs=rev_probs)
+    elif isinstance(matrices[0], OrderParamTransitionMatrix):
+        return OrderParamTransitionMatrix(
+            index=index, fw_atts=fw_atts, rev_atts=rev_atts,
+            fw_probs=fw_probs, rev_probs=rev_probs)
+    else:
+        raise NotImplementedError
 
 
 def combine_pacc_runs(path, runs, pacc_file):
@@ -227,8 +343,7 @@ def combine_pacc_runs(path, runs, pacc_file):
 
 
 class Distribution(object):
-    """The logarithm of the probability distribution along a specified
-    path.
+    """A base class for probability distributions.
 
     Attributes:
         index: A numpy array or dict describing the states in the
@@ -286,7 +401,34 @@ class Distribution(object):
         for p in self.log_probs:
             yield p
 
-    def _smooth_op(self, order, drop=None):
+
+class OrderParamDistribution(Distribution):
+    """The logarithm of the probability distribution along the order
+    parameter path.
+
+    Attributes:
+        index: A numpy array with the order parameter values.
+        log_probs: An array with the logarithm of the
+            probability distribution.
+    """
+
+    def __init__(self, index, log_probs):
+        super().__init__(index, log_probs)
+
+    def smooth(self, order, drop=None):
+        """Perform curve fitting on the free energy differences to
+        produce a new estimate of the free energy.
+
+        Args:
+            order: The order of the polynomial used to fit the free
+                energy differences.
+            drop: A boolean numpy array denoting whether to drop each
+                subensemble prior to fitting.
+
+        Returns:
+            An OrderParamDistribution with the new estimate for the
+            free energy.
+        """
         if drop is None:
             drop = np.tile(False, len(self) - 1)
 
@@ -295,9 +437,65 @@ class Distribution(object):
         p = np.poly1d(np.polyfit(x[:-1], y, order))
         smoothed = np.append(0.0, np.cumsum(p(self.index[1:])))
 
-        return Distribution(index=self.index, log_probs=smoothed)
+        return OrderParamDistribution(index=self.index, log_probs=smoothed)
 
-    def _smooth_tr(self, order, drop=None):
+    def split(self, split=0.5):
+        """Split the distribution into two parts.
+
+        Args:
+            split: The fraction of the length to use as the boundary for
+                the two parts.
+
+        Returns:
+            A tuple of OrderParamDistribution objects.
+        """
+        bound = int(split * len(self))
+        ind, logp = self.index, self.log_probs
+        fst = OrderParamDistribution(index=ind[:bound],
+                                     log_probs=logp[:bound])
+        snd = OrderParamDistribution(index=ind[bound:],
+                                     log_probs=logp[bound:])
+
+        return fst, snd
+
+    def write(self, path):
+        """Write the distribution to a file.
+
+        Args:
+            path: The name of the file to write.
+        """
+        np.savetxt(path, np.column_stack((self.index, self.log_probs)),
+                   fmt=['%8d', '%10.5g'])
+
+
+class TransferDistribution(Distribution):
+    """The logarithm of the probability distribution along the
+    molecule transfer path.
+
+    Attributes:
+        index: A dict with the overall number, molecule, subensemble,
+            and growth stage of each state in the path.
+        log_probs: An array with the logarithm of the
+            probability distribution.
+    """
+
+    def __init__(self, index, log_probs):
+        super().__init__(index, log_probs)
+
+    def smooth(self, order, drop=None):
+        """Perform curve fitting on the free energy differences to
+        produce a new estimate of the free energy.
+
+        Args:
+            order: The order of the polynomial used to fit the free
+                energy differences.
+            drop: A boolean numpy array denoting whether to drop each
+                subensemble prior to fitting.
+
+        Returns:
+            A TransferDistribution with the new estimate for the free
+            energy.
+        """
         size = len(self)
         ind = self.index
         mol, sub, stage = ind['molecules'], ind['subensembles'], ind['stages']
@@ -333,25 +531,6 @@ class Distribution(object):
 
         return smoothed
 
-    def smooth(self, order, drop=None):
-        """Perform curve fitting on the free energy differences to
-        produce a new estimate of the free energy.
-
-        Args:
-            order: The order of the polynomial used to fit the free
-                energy differences.
-            drop: A boolean numpy array denoting whether to drop each
-                subensemble prior to fitting.
-
-        Returns:
-            A dict containing the subensemble index and the new estimate
-            for the free energy of the order parameter path.
-        """
-        if isinstance(self.index, dict):
-            return self._smooth_tr(order, drop)
-
-        return self._smooth_op(order, drop)
-
     def split(self, split=0.5):
         """Split the distribution into two parts.
 
@@ -360,18 +539,16 @@ class Distribution(object):
                 the two parts.
 
         Returns:
-            A tuple of Distribution objects.
+            A tuple of TransferDistribution objects.
         """
         bound = int(split * len(self))
         ind, logp = self.index, self.log_probs
-        if isinstance(ind, dict):
-            fst = Distribution(index={k: v[:bound] for k, v in ind.items()},
-                               log_probs=logp[:bound])
-            snd = Distribution(index={k: v[bound:] for k, v in ind.items()},
-                               log_probs=logp[bound:])
-        else:
-            fst = Distribution(index=ind[:bound], log_probs=logp[:bound])
-            snd = Distribution(index=ind[bound:], log_probs=logp[bound:])
+        fst = TransferDistribution(
+            index={k: v[:bound] for k, v in ind.items()},
+            log_probs=logp[:bound])
+        snd = TransferDistribution(
+            index={k: v[bound:] for k, v in ind.items()},
+            log_probs=logp[bound:])
 
         return fst, snd
 
@@ -381,17 +558,11 @@ class Distribution(object):
         Args:
             path: The name of the file to write.
         """
-        if isinstance(self.index, dict):
-            ind = self.index
-            np.savetxt(
-                path,
-                np.column_stack((ind['numbers'], ind['subensembles'],
-                                 ind['molecules'], ind['stages'],
-                                 self.log_probs)),
-                fmt=4 * ['%8d'] + ['%10.5g'])
-        else:
-                np.savetxt(path, np.column_stack((self.index, self.log_probs)),
-                           fmt=['%8d', '%10.5g'])
+        ind = self.index
+        np.savetxt(path, np.column_stack((ind['numbers'], ind['subensembles'],
+                                          ind['molecules'], ind['stages'],
+                                          self.log_probs)),
+                   fmt=4 * ['%8d'] + ['%10.5g'])
 
 
 def read_lnpi(path):
@@ -405,15 +576,15 @@ def read_lnpi(path):
     """
     base = os.path.basename(path)
     if 'tr' in base:
-        index = _read_tr_index(path)
-        logp = np.loadtxt(path, usecols=(4, ))
+        return TransferDistribution(index=_read_tr_index(path),
+                                    log_probs=np.loadtxt(path, usecols=(4, )))
     elif 'op' in base:
         index, logp = np.loadtxt(path, usecols=(0, 1), unpack=True)
-        index = index.astype('int')
+
+        return OrderParamDistribution(index=index.astype('int'),
+                                      log_probs=logp)
     else:
         raise NotImplementedError
-
-    return Distribution(index=index, log_probs=logp)
 
 
 class FrequencyDistribution(object):
@@ -469,15 +640,16 @@ def read_hits(path):
     """
     base = os.path.basename(path)
     if 'tr' in base:
-        index = _read_tr_index(path)
-        freqs = np.loadtxt(path, usecols=(4, ), dtype='int', unpack=True)
+        return FrequencyDistribution(
+            index=_read_tr_index(path),
+            freqs=np.loadtxt(path, usecols=(4, ), dtype='int', unpack=True))
     elif 'op' in base:
         index, freqs = np.loadtxt(path, usecols=(0, 1), dtype='int',
                                   unpack=True)
+
+        return FrequencyDistribution(index=index, freqs=freqs)
     else:
         raise NotImplementedError
-
-    return FrequencyDistribution(index=index, freqs=freqs)
 
 
 def combine_frequencies(cls, dists):
@@ -553,21 +725,18 @@ def read_prop(path):
         path: The location of the file to read.
 
     Returns:
-        An OrderParameterPropertyList or GrowthExpandedPropertyList
-        object, based on the name of the file.
+        A PropertyList object.
     """
     base = os.path.basename(path)
     if 'tr' in base:
-        index = _read_tr_index(path)
-        props = np.transpose(np.loadtxt(path))[4:]
+        return PropertyList(index=_read_tr_index(path),
+                            props=np.transpose(np.loadtxt(path))[4:])
     elif 'op' in base:
         raw = np.transpose(np.loadtxt(path))
-        index = raw[0].astype('int')
-        props = raw[1:]
+
+        return PropertyList(index=raw[0].astype('int'), props=raw[1:])
     else:
         raise NotImplementedError
-
-    return PropertyList(index=index, props=props)
 
 
 def combine_property_lists(cls, lists, freq_dists):
