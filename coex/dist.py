@@ -108,7 +108,6 @@ class OrderParamTransitionMatrix(TransitionMatrix):
             An OrderParamDistribution.
         """
         dist = np.zeros(len(self))
-
         for i, dc in enumerate(np.diff(guess)):
             dist[i + 1] = dist[i] + dc
             fw_prob = self.fw_probs[i]
