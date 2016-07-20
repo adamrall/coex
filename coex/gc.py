@@ -52,7 +52,8 @@ class Simulation(object):
         self.activities = fractions_to_activities(transposed,
                                                   one_subensemble=True)
 
-    def get_composition(self):
+    @property
+    def composition(self):
         """Calculate the average composition of each phase in the
         simulation.
 
@@ -69,7 +70,8 @@ class Simulation(object):
         return {'vapor': avg_n['vapor'] / sum(avg_n['vapor']),
                 'liquid': avg_n['liquid'] / sum(avg_n['liquid'])}
 
-    def get_grand_potential(self):
+    @property
+    def grand_potential(self):
         """Calculate the grand potential of the Simulation.
 
         If the order parameter is the total molecule number N, then
@@ -84,7 +86,8 @@ class Simulation(object):
 
         return np.log(prob[0] * 2.0)
 
-    def get_average_n(self, split=0.5):
+    @property
+    def average_n(self, split=0.5):
         """Find the average number of molecules in each phase.
 
         Args:

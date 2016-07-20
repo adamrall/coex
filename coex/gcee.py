@@ -75,7 +75,8 @@ class Phase(object):
                 self.weights[i] = np.nan_to_num(log_old_act - log_new_act)
                 self.activities[species - 1, i] = np.exp(log_new_act)
 
-    def get_composition(self):
+    @property
+    def composition(self):
         """Calculate the weighted average composition of the phase.
 
         Returns:
@@ -89,7 +90,8 @@ class Phase(object):
 
         return nm / sum(nm)
 
-    def get_grand_potential(self):
+    @property
+    def grand_potential(self):
         """Calculate the grand potential of each subensemble.
 
         This function walks the length of the expanded ensemble path
@@ -126,7 +128,8 @@ class Phase(object):
 
         return gp
 
-    def get_average_n(self):
+    @property
+    def average_n(self):
         """Calculate the weighted average number of molecules.
 
         Returns:
