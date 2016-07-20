@@ -273,15 +273,18 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         The first and second phases must already be shifted to their
         appropriate reference points.
     """
-    def objective(x, j):
-        if j == first.index or j == second.index:
+    def solve(i):
+        def objective(x):
+            fst = first.dist[i] + first.nhists[species][i].reweight(x)
+            snd = second.dist[i] + second.nhists[species][i].reweight(x)
+            return np.abs(fst - snd)
+
+        if i == first.index or i == second.index:
             return 0.0
 
-        return np.abs(first.dist[j] + first.nhists[species][j].reweight(x) -
-                      second.dist[j] - second.nhists[species][j].reweight(x))
+        return fsolve(objective, x0=x0)[0]
 
-    solutions = [fsolve(objective, x0=x0, args=(i, ))[0]
-                 for i in range(len(first.dist))]
+    solutions = [solve(i) for i in range(len(first.dist))]
     for p in first, second:
         p.shift_to_coexistence(solutions, species)
 
