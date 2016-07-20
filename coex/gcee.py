@@ -44,7 +44,7 @@ class Phase(object):
         self.beta = beta
         self.weights = weights
         if weights is None:
-            self.weights = np.tile(None, len(dist))
+            self.weights = np.tile(None, activities.shape)
 
     @property
     def fractions(self):
@@ -62,6 +62,7 @@ class Phase(object):
             solutions: A list of log(activitiy) differences.
             species: The species used in histogram reweighting.
         """
+        log_old_act = np.log(self.activities)
         if species == 0:
             frac = activities_to_fractions(self.activities)
             frac[0] -= solutions
@@ -70,10 +71,10 @@ class Phase(object):
         for i, sol in enumerate(solutions):
             self.dist.log_probs[i] += self.nhists[species][i].reweight(sol)
             if species != 0:
-                log_old_act = np.log(self.activities[species - 1, i])
-                log_new_act = log_old_act - sol
-                self.weights[i] = np.nan_to_num(log_old_act - log_new_act)
-                self.activities[species - 1, i] = np.exp(log_new_act)
+                new_act = np.exp(log_old_act[species - 1, i] - sol)
+                self.activities[species - 1, i] = new_act
+
+        self.weights = np.nan_to_num(log_old_act - np.log(self.activities))
 
     @property
     def composition(self):
@@ -136,8 +137,12 @@ class Phase(object):
             A numpy array with the number of molecules of each species
             in each subensemble.
         """
-        return np.array([h.average(w)
-                         for h, w in zip(self.nhists[1:], self.weights)])
+        hists = self.nhists[1:]
+        if len(hists > 1):
+            return np.array([h.average(w)
+                             for h, w in zip(hists, self.weights)])
+
+        return hists[0].average(self.weights[0])
 
 
 def read_phase(path, index, fractions=None, beta=None):

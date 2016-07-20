@@ -100,15 +100,21 @@ class Simulation(object):
         """
         bound = int(split * len(self.dist))
 
-        def average_phase(hist, weight, phase):
-            split_hist = hist[:bound] if phase == 'vapor' else hist[bound:]
+        def average_phase(hist, weight, is_vapor=True):
+            split_hist = hist[:bound] if is_vapor else hist[bound:]
 
             return [d.average(weight) for d in split_hist]
 
-        vapor = np.array([average_phase(nh, self.weights[i], 'vapor')
-                          for i, nh in enumerate(self.nhists[1:])])
-        liquid = np.array([average_phase(nh, self.weights[i], 'liquid')
-                           for i, nh in enumerate(self.nhists[1:])])
+        hists = self.nhists[1:]
+        if len(hists) > 1:
+            vapor = np.array([average_phase(nh, self.weights[i])
+                              for i, nh in enumerate(hists)])
+            liquid = np.array(
+                [average_phase(nh, self.weights[i], is_vapor=False)
+                 for i, nh in enumerate(hists)])
+        else:
+            vapor = average_phase(hists[0], self.weights[0])
+            liquid = average_phase(hists[0], self.weights[0], is_vapor=False)
 
         return {'vapor': vapor, 'liquid': liquid}
 
