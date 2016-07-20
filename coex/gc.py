@@ -65,7 +65,7 @@ class Simulation(object):
         if len(self.nhists) < 3:
             return {'vapor': np.tile(1.0, size), 'liquid': np.tile(1.0, size)}
 
-        avg_n = self.get_average_n()
+        avg_n = self.average_n
 
         return {'vapor': avg_n['vapor'] / sum(avg_n['vapor']),
                 'liquid': avg_n['liquid'] / sum(avg_n['liquid'])}

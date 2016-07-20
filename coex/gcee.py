@@ -86,7 +86,7 @@ class Phase(object):
         if len(self.nhists) < 3:
             return np.tile(1.0, len(self.dist))
 
-        nm = self.get_average_n()
+        nm = self.average_n
 
         return nm / sum(nm)
 
@@ -243,7 +243,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
     """
     liq = copy.deepcopy(liquid)
     vap = copy.deepcopy(vapor)
-    vap.dist.log_probs = -vap.get_grand_potential()
+    vap.dist.log_probs = -vap.grand_potential
     liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
     return _get_two_phase_coexistence(liq, vap, species)
