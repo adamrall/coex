@@ -430,10 +430,12 @@ class OrderParamDistribution(Distribution):
         """
         if drop is None:
             drop = np.tile(False, len(self) - 1)
+        else:
+            drop = drop[1:]
 
-        x = self.index[~drop]
-        y = np.diff(self[~drop])
-        p = np.poly1d(np.polyfit(x[:-1], y, order))
+        x = self.index[1:][~drop]
+        y = np.diff(self)[~drop]
+        p = np.poly1d(np.polyfit(x, y, order))
         smoothed = np.append(0.0, np.cumsum(p(self.index[1:])))
 
         return OrderParamDistribution(index=self.index, log_probs=smoothed)
@@ -500,6 +502,7 @@ class TransferDistribution(Distribution):
         mol, sub, stage = ind['molecules'], ind['subensembles'], ind['stages']
         diff, fit = np.zeros(size), np.zeros(size)
         dist = np.zeros(size)
+        x = np.array(range(size))
         if drop is None:
             drop = np.tile(False, size)
 
@@ -515,8 +518,8 @@ class TransferDistribution(Distribution):
             for i in mol_stages:
                 curr_stage = curr_mol & (stage == i)
                 y = diff[curr_stage & ~drop]
-                p = np.poly1d(np.polyfit(range(len(y)), y, order))
-                fit[curr_stage] = p(range(len(fit[curr_stage])))
+                p = np.poly1d(np.polyfit(x[curr_stage & ~drop], y, order))
+                fit[curr_stage] = p(x[curr_stage])
 
             for s in mol_subs:
                 curr_sub = (sub == s)
