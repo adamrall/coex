@@ -139,7 +139,7 @@ class Histogram(object):
             sampled = len(sh)
             raw_hist[0:sampled, i + 1] = sh.counts
 
-        np.savetxt(path, raw_hist, fmt='%8.d', delimiter='  ')
+        np.savetxt(path, raw_hist, fmt='%8d', delimiter='  ')
 
 
 def _get_limits_path(hist_file):

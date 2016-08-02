@@ -125,7 +125,7 @@ class OrderParamTransitionMatrix(TransitionMatrix):
         Args:
             path: The location of the file to write.
         """
-        fmt = 3 * ['%8d'] + 2 * ['%10.5g']
+        fmt = 3 * ['%8d'] + 2 * ['%.11e']
         arr = np.column_stack((self.index, self.fw_atts, self.rev_atts,
                                self.fw_probs, self.rev_probs))
 
@@ -251,7 +251,7 @@ class TransferTransitionMatrix(TransitionMatrix):
             path: The location of the file to write.
         """
         ind = self.index
-        fmt = 6 * ['%8d'] + 2 * ['%10.5g']
+        fmt = 6 * ['%8d'] + 2 * ['%.11e']
         arr = np.column_stack((
             ind['number'], ind['subensembles'], ind['molecules'],
             ind['stages'], self.fw_atts, self.rev_atts, self.fw_probs,
@@ -466,7 +466,7 @@ class OrderParamDistribution(Distribution):
             path: The name of the file to write.
         """
         np.savetxt(path, np.column_stack((self.index, self.log_probs)),
-                   fmt=['%8d', '%10.5g'])
+                   fmt=['%8d', '%.11e'])
 
 
 class TransferDistribution(Distribution):
@@ -564,7 +564,7 @@ class TransferDistribution(Distribution):
         np.savetxt(path, np.column_stack((ind['numbers'], ind['subensembles'],
                                           ind['molecules'], ind['stages'],
                                           self.log_probs)),
-                   fmt=4 * ['%8d'] + ['%10.5g'])
+                   fmt=4 * ['%8d'] + ['%.11e'])
 
 
 def read_lnpi(path):
@@ -625,10 +625,10 @@ class FrequencyDistribution(object):
                 np.column_stack((ind['numbers'], ind['subensembles'],
                                  ind['molecules'], ind['stages'],
                                  self.freqs)),
-                fmt=4 * ['%8d'] + ['%10.5g'])
+                fmt=4 * ['%8d'] + ['%.11e'])
         else:
                 np.savetxt(path, np.column_stack((self.index, self.freqs)),
-                           fmt=['%8d', '%10.5g'])
+                           fmt=['%8d', '%.11e'])
 
 
 def read_hits(path):
@@ -713,11 +713,11 @@ class PropertyList(object):
                 np.column_stack((ind['number'], ind['subensembles'],
                                  ind['molecules'], ind['stages'],
                                  *np.transpose(self.props))),
-                fmt=4 * ['%8d'] + len(self.props) * ['%10.5g'])
+                fmt=4 * ['%8d'] + len(self.props) * ['%.11e'])
         else:
             np.savetxt(path, np.column_stack((self.index,
                                               np.tranpose(*self.props))),
-                       fmt=['%8d'] + len(self.props) * ['%10.5g'])
+                       fmt=['%8d'] + len(self.props) * ['%.11e'])
 
 
 def read_prop(path):
