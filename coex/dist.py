@@ -483,6 +483,27 @@ class TransferDistribution(Distribution):
     def __init__(self, index, log_probs):
         super().__init__(index, log_probs)
 
+    def shift_by_order_parameter(self, op_dist):
+        """Add the order parameter free energies to transfer path
+        free energies.
+
+        This is the form that gchybrid normally outputs: each
+        subensemble's transfer path free energies are relative to that
+        subensemble's order parameter free energy.
+
+        Args:
+            op_dist: An OrderParamDistribution object with the free
+                energies to shift by.
+
+        Returns:
+            A new TransferDistribution with shifted free energies.
+        """
+        shifted = copy.deepcopy(self)
+        for i, p in enumerate(op_dist):
+            shifted[shifted.index['subensembles'] == i] += p
+
+        return shifted
+
     def smooth(self, order, drop=None):
         """Perform curve fitting on the free energy differences to
         produce a new estimate of the free energy.
