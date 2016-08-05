@@ -414,13 +414,16 @@ class OrderParamDistribution(Distribution):
     def __init__(self, index, log_probs):
         super().__init__(index, log_probs)
 
-    def smooth(self, order, drop=None):
+    def smooth(self, order, denominator=None, drop=None):
         """Perform curve fitting on the free energy differences to
         produce a new estimate of the free energy.
 
         Args:
             order: The order of the polynomial used to fit the free
                 energy differences.
+            denominator: If present, smooth the differences in free
+                energy relative to this array. Useful for, e.g.,
+                smoothing relative to beta in TEE simulations.
             drop: A boolean numpy array denoting whether to drop each
                 subensemble prior to fitting.
 
@@ -433,10 +436,14 @@ class OrderParamDistribution(Distribution):
         else:
             drop = drop[1:]
 
+        if denominator is None:
+            denominator = np.array(range(len(self))) + 1.0
+
         x = self.index[1:][~drop]
-        y = np.diff(self)[~drop]
+        y = (np.diff(self) / np.diff(denominator))[~drop]
         p = np.poly1d(np.polyfit(x, y, order))
-        smoothed = np.append(0.0, np.cumsum(p(self.index[1:])))
+        smoothed = p(self.index) * denominator
+        smoothed -= smoothed[0]
 
         return OrderParamDistribution(index=self.index, log_probs=smoothed)
 
