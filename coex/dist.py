@@ -280,14 +280,14 @@ def read_pacc(path):
     base = os.path.basename(path)
     if 'tr' in base:
         index = _read_tr_index(path)
-        fw_atts, rev_atts, fw_probs, rev_probs = np.loadtxt(
+        rev_atts, fw_atts, rev_probs, fw_probs = np.loadtxt(
             path, usecols=(4, 5, 6, 7), unpack=True)
         return TransferTransitionMatrix(
             index, fw_atts=fw_atts.astype('int'),
             rev_atts=rev_atts.astype('int'), fw_probs=fw_probs,
             rev_probs=rev_probs)
     elif 'op' in base:
-        index, fw_atts, rev_atts, fw_probs, rev_probs = np.loadtxt(
+        index, rev_atts, fw_atts, rev_probs, fw_probs = np.loadtxt(
             path, usecols=(0, 1, 2, 3, 4), unpack=True)
         index = index.astype('int')
         return OrderParamTransitionMatrix(
