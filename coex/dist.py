@@ -126,8 +126,8 @@ class OrderParamTransitionMatrix(TransitionMatrix):
             path: The location of the file to write.
         """
         fmt = 3 * ['%8d'] + 2 * ['%.11e']
-        arr = np.column_stack((self.index, self.fw_atts, self.rev_atts,
-                               self.fw_probs, self.rev_probs))
+        arr = np.column_stack((self.index, self.rev_atts, self.fw_atts,
+                               self.rev_probs, self.fw_probs))
 
         np.savetxt(path, arr, fmt=fmt, delimiter=' ')
 
@@ -254,8 +254,8 @@ class TransferTransitionMatrix(TransitionMatrix):
         fmt = 6 * ['%8d'] + 2 * ['%.11e']
         arr = np.column_stack((
             ind['number'], ind['subensembles'], ind['molecules'],
-            ind['stages'], self.fw_atts, self.rev_atts, self.fw_probs,
-            self.rev_probs))
+            ind['stages'], self.rev_atts, self.fw_atts, self.rev_probs,
+            self.fw_probs))
 
         np.savetxt(path, arr, fmt=fmt, delimiter=' ')
 
