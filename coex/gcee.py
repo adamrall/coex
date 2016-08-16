@@ -138,7 +138,7 @@ class Phase(object):
             in each subensemble.
         """
         hists = self.nhists[1:]
-        if len(hists > 1):
+        if len(hists) > 1:
             return np.array([h.average(w)
                              for h, w in zip(hists, self.weights)])
 
