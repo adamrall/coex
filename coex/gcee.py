@@ -76,8 +76,7 @@ class Phase(object):
 
         self.weights = np.nan_to_num(log_old_act - np.log(self.activities))
 
-    @property
-    def composition(self):
+    def get_composition(self):
         """Calculate the weighted average composition of the phase.
 
         Returns:
@@ -129,8 +128,7 @@ class Phase(object):
 
         return gp
 
-    @property
-    def average_n(self):
+    def get_average_n(self):
         """Calculate the weighted average number of molecules.
 
         Returns:

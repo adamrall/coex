@@ -53,24 +53,6 @@ class Simulation(object):
                                                   one_subensemble=True)
 
     @property
-    def composition(self):
-        """Calculate the average composition of each phase in the
-        simulation.
-
-        Returns:
-            A (vapor, liquid) tuple of numpy arrays, each containing the
-            mole fraction of each species.
-        """
-        size = len(self.dist)
-        if len(self.nhists) < 3:
-            return {'vapor': np.tile(1.0, size), 'liquid': np.tile(1.0, size)}
-
-        avg_n = self.average_n
-
-        return {'vapor': avg_n['vapor'] / sum(avg_n['vapor']),
-                'liquid': avg_n['liquid'] / sum(avg_n['liquid'])}
-
-    @property
     def grand_potential(self):
         """Calculate the grand potential of the Simulation.
 
@@ -86,8 +68,7 @@ class Simulation(object):
 
         return np.log(prob[0] * 2.0)
 
-    @property
-    def average_n(self, split=0.5):
+    def get_average_n(self, split=0.5):
         """Find the average number of molecules in each phase.
 
         Args:
@@ -95,8 +76,9 @@ class Simulation(object):
                 range) the liquid/vapor phase boundary lies.
 
         Returns:
-            A (vapor, liquid) tuple of numpy arrays, each containing
-            the average number of molecules of each species.
+            A dict with the keys 'liquid' and 'vapor', each referencing
+            a numpy array with the average number of molecules of each
+            species.
         """
         bound = int(split * len(self.dist))
 
@@ -150,6 +132,23 @@ class Simulation(object):
                                      np.log(coex.activities))
 
         return coex
+
+    def get_composition(self, split=0.5):
+        """Calculate the average composition of each phase in the
+        simulation.
+
+        Returns:
+            A (vapor, liquid) tuple of numpy arrays, each containing the
+            mole fraction of each species.
+        """
+        size = len(self.dist)
+        if len(self.nhists) < 3:
+            return {'vapor': np.tile(1.0, size), 'liquid': np.tile(1.0, size)}
+
+        avg_n = self.get_average_n(split)
+
+        return {'vapor': avg_n['vapor'] / sum(avg_n['vapor']),
+                'liquid': avg_n['liquid'] / sum(avg_n['liquid'])}
 
 
 def get_coexistence(sim, species, x0=-0.001):
