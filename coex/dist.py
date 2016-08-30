@@ -608,7 +608,7 @@ def read_lnpi(path):
     if 'tr' in base:
         return TransferDistribution(index=_read_tr_index(path),
                                     log_probs=np.loadtxt(path, usecols=(4, )))
-    elif 'op' in base:
+    elif 'op' in base or 'gn' in base:
         index, logp = np.loadtxt(path, usecols=(0, 1), unpack=True)
 
         return OrderParamDistribution(index=index.astype('int'),
