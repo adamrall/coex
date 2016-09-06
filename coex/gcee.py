@@ -206,7 +206,8 @@ def read_phases(paths, index, fractions=None, beta=None):
     return (read_phase(p, index, fractions, beta) for p in paths)
 
 
-def get_liquid_liquid_coexistence(first, second, species, grand_potential):
+def get_liquid_liquid_coexistence(first, second, species, grand_potential,
+                                  x0=0.01):
     """Find the coexistence point of two liquid phases.
 
     Note that the two phases must already be shifted to their
@@ -217,6 +218,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
         second: A Phase object with data for the second phase.
         species: The species to use for histogram reweighting.
         grand_potential: The reference grand potential.
+		x0: The initial guess to use for the solver.
 
     Returns:
         A tuple with the two Phase objects at coexistence.
@@ -229,13 +231,14 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential):
     return _get_two_phase_coexistence(fst, snd, species)
 
 
-def get_liquid_vapor_coexistence(liquid, vapor, species):
+def get_liquid_vapor_coexistence(liquid, vapor, species, x0=0.01):
     """Find the coexistence point of a liquid phase and a vapor phase.
 
     Args:
         liquid: A Phase object with the liquid data.
         vapor: A Phase object with the vapor data.
         species: The species to use for histogram reweighting.
+		x0: The initial guess to use for the solver.
 
     Returns:
         A tuple with the two Phase objects at coexistence.
@@ -252,7 +255,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species):
     return _get_two_phase_coexistence(liq, vap, species)
 
 
-def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
+def _get_two_phase_coexistence(first, second, species, x0):
     """Find the coexistence point of two grand canonical expanded
     ensemble simulations.
 
@@ -261,8 +264,7 @@ def _get_two_phase_coexistence(first, second, species=1, x0=0.01):
         second: A Phase object with data for the second phase.
         species: The integer representing which species to use for the
             reweighting.
-        x0: The initial guess to use for the solver in the
-            coexistence_point function.
+        x0: The initial guess to use for the solver.
 
     Returns:
         A tuple with the two Phase objects at coexistence.
