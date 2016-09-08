@@ -64,12 +64,16 @@ class SubHistogram(object):
         Returns:
             The weighted average as a float.
         """
-        if weight is None:
-            return sum(self.counts * self.bins) / sum(self.counts)
+        try:
+            if weight is None:
+                avg = sum(self.counts * self.bin) / sum(self.counts)
+            else:
+                shifted = self._shift(weight)
+                avg = sum(self.bins * shifted) / sum(shifted)
+        except ZeroDivisionError:
+            return 0.0
 
-        shifted = self._shift(weight)
-
-        return sum(self.bins * shifted) / sum(shifted)
+        return avg
 
 
 class Histogram(object):
