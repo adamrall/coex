@@ -228,7 +228,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential,
     for p in fst, snd:
         p.dist.log_propbs -= p.dist[p.index] + grand_potential
 
-    return _get_two_phase_coexistence(fst, snd, species)
+    return _get_two_phase_coexistence(fst, snd, species, x0)
 
 
 def get_liquid_vapor_coexistence(liquid, vapor, species, x0=0.01):
@@ -252,7 +252,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, x0=0.01):
     vap.dist.log_probs = -vap.grand_potential
     liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
-    return _get_two_phase_coexistence(liq, vap, species)
+    return _get_two_phase_coexistence(liq, vap, species, x0)
 
 
 def _get_two_phase_coexistence(first, second, species, x0):
