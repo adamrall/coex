@@ -14,6 +14,10 @@ from coex.dist import read_lnpi
 from coex.hist import read_all_nhists, read_hist
 
 
+class SamplingError(Exception):
+    pass
+
+
 class Phase(object):
     """Calculate the coexistence properties of the output of a grand
     canonical expanded ensemble simulation.
@@ -101,30 +105,48 @@ class Phase(object):
         sufficiently, the free energy difference between subensembles
         is used.
 
+        Note that this function will not work for liquid phases, which
+        do not usually have the N=0 state sampled.
+
         Returns:
             A numpy array with the grand potential of each subensemble.
         """
         lnpi = self.dist.log_probs
         gp = np.zeros(len(lnpi))
-        iter_range = range(len(gp))
         nhist = self.nhists[0]
-        # Reverse the order of traversal for TEE: the subensembles
-        # more likely to sample N=0 are at high beta (low T).
-        if self.beta is not None:
-            iter_range = reversed(iter_range)
 
-        for num, i in enumerate(iter_range):
-            d = nhist[i]
-            if d.bins[0] < 1.0e-8 and d.counts[0] > 1000:
-                gp[i] = np.log(d.counts[0] / sum(d.counts))
-            else:
-                if num == 0:
-                    gp[i] = -lnpi[i]
+        def get_sampled_vapor_subensembles():
+            return np.array([True if (d.bins[0] < 1.0e-8 and
+                                      d.counts[0] > 1000) else False
+                             for d in nhist])
+
+        def calculate_range(iter_range, is_reversed=False):
+            in_sampled_block = True
+            for i in iter_range:
+                d = nhist[i]
+                if sampled[i] and in_sampled_block:
+                    gp[i] = np.log(d.counts[0] / sum(d.counts))
                 else:
-                    if self.beta is not None:
+                    in_sampled_block = False
+                    if is_reversed:
                         gp[i] = gp[i + 1] + lnpi[i + 1] - lnpi[i]
                     else:
                         gp[i] = gp[i - 1] + lnpi[i - 1] - lnpi[i]
+
+        sampled = get_sampled_vapor_subensembles()
+        if sampled[0]:
+            calculate_range(range(len(gp)))
+        elif sampled[-1]:
+            calculate_range(reversed(range(len(gp))), is_reversed=True)
+        else:
+            if np.count_nonzero(sampled) == 0:
+                raise SamplingError("{}\n{}".format(
+                    "Can't find a sampled subensemble for the grand",
+                    'potential calculation. Is this phase a liquid?'))
+
+            first_sampled = np.nonzero(sampled)[0][0]
+            calculate_range(range(first_sampled, 0), is_reversed=True)
+            calculate_range(range(first_sampled, len(gp)))
 
         return gp
 
@@ -218,7 +240,7 @@ def get_liquid_liquid_coexistence(first, second, species, grand_potential,
         second: A Phase object with data for the second phase.
         species: The species to use for histogram reweighting.
         grand_potential: The reference grand potential.
-		x0: The initial guess to use for the solver.
+        x0: The initial guess to use for the solver.
 
     Returns:
         A tuple with the two Phase objects at coexistence.
@@ -238,7 +260,7 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, x0=0.01):
         liquid: A Phase object with the liquid data.
         vapor: A Phase object with the vapor data.
         species: The species to use for histogram reweighting.
-		x0: The initial guess to use for the solver.
+        x0: The initial guess to use for the solver.
 
     Returns:
         A tuple with the two Phase objects at coexistence.
@@ -249,7 +271,14 @@ def get_liquid_vapor_coexistence(liquid, vapor, species, x0=0.01):
     """
     liq = copy.deepcopy(liquid)
     vap = copy.deepcopy(vapor)
-    vap.dist.log_probs = -vap.grand_potential
+    try:
+        gp = vap.grand_potential
+    except SamplingError as e:
+        raise RuntimeError('{}\n{}'.format(
+            'Consider using get_liquid_liquid_coexistence() with a ',
+            'reference grand potential.')) from e
+
+    vap.dist.log_probs = -gp
     liq.dist.log_probs += vap.dist[vap.index] - liq.dist[liq.index]
 
     return _get_two_phase_coexistence(liq, vap, species, x0)
