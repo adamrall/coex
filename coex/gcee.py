@@ -86,7 +86,7 @@ class Phase(object):
         if len(self.nhists) < 3:
             return np.tile(1.0, len(self.dist))
 
-        nm = self.average_n
+        nm = self.get_average_n()
 
         return nm / sum(nm)
 
